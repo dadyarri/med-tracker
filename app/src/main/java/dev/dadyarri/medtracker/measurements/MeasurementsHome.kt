@@ -132,7 +132,11 @@ fun MeasurementsHome(
             }
         }
     }, settingsContent = {
-        if (mealsModel != null) dev.dadyarri.medtracker.meals.CycleSettings(cycle, mealBusy, mealsModel::toggleCycle, mealsModel::setCycle)
+        if (mealsModel != null) dev.dadyarri.medtracker.reminders.ReminderSettingsScreen {
+            var showCycle by rememberSaveable { mutableStateOf(false) }
+            TextButton(onClick = { showCycle = !showCycle }) { Text("Цикл контроля глюкозы") }
+            if (showCycle) dev.dadyarri.medtracker.meals.CycleSettings(cycle, mealBusy, mealsModel::toggleCycle, mealsModel::setCycle)
+        }
     }) { today ->
         val visible = if (today) HistoryFilter(start = currentDate, end = currentDate).apply(all) else filter.apply(all)
         val loaded = pressures != null && weights != null && glucose != null

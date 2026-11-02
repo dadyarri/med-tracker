@@ -2,8 +2,6 @@ package dev.dadyarri.medtracker.meals
 
 import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -18,7 +16,7 @@ fun CycleSettings(cycle: GlucoseCycle?, busy: Boolean, onToggle: () -> Unit, onS
     var after by rememberSaveable(current.afterMinutes) { mutableStateOf(current.afterMinutes.toString()) }
     var picker by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Контроль глюкозы", style = MaterialTheme.typography.titleLarge)
         Text("День 1: натощак и после завтрака\nДень 2: до и после обеда\nДень 3: до и после ужина",
