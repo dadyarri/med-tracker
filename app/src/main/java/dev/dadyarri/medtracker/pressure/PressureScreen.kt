@@ -5,7 +5,6 @@ import android.app.TimePickerDialog
 import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.BasicTextField
@@ -29,96 +28,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.LifecycleResumeEffect
-import kotlinx.coroutines.delay
-import dev.dadyarri.medtracker.EmptyHome
-import org.koin.androidx.compose.koinViewModel
-import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.ZoneId
-import java.util.UUID
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PressureHome(model: PressureViewModel = koinViewModel()) {
-    val records by model.records.collectAsStateWithLifecycle()
-    val busy by model.busy.collectAsStateWithLifecycle()
-    val error by model.error.collectAsStateWithLifecycle()
-    var editorId by rememberSaveable { mutableStateOf<String?>(null) }
-    var editing by rememberSaveable { mutableStateOf(false) }
-    var initial by rememberSaveable { mutableStateOf<List<String>?>(null) }
-    var currentDate by remember { mutableStateOf(LocalDate.now()) }
-    LifecycleResumeEffect(Unit) {
-        currentDate = LocalDate.now()
-        onPauseOrDispose { }
-    }
-    LaunchedEffect(Unit) {
-        while (true) {
-            val now = java.time.ZonedDateTime.now()
-            val nextDay = now.toLocalDate().plusDays(1).atStartOfDay(now.zone)
-            delay(java.time.Duration.between(now, nextDay).toMillis().coerceAtLeast(1))
-            currentDate = LocalDate.now()
-        }
-    }
-
-    fun open(record: PressureRecord?) {
-        val draft = record?.let(PressureDraft::from)
-            ?: PressureDraft(time = PressureDraft.format(System.currentTimeMillis()))
-        initial = listOf(draft.systolic, draft.diastolic, draft.pulse, draft.time, draft.context.orEmpty(), draft.comment)
-        editing = record != null
-        editorId = record?.id ?: UUID.randomUUID().toString()
-        model.error.value = null
-    }
-    EmptyHome(recordActions = {
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Surface(
-                onClick = { open(null) },
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            ) {
-                Column(
-                    modifier = Modifier.widthIn(min = 88.dp).heightIn(min = 80.dp).padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
-                ) {
-                    Icon(painterResource(R.drawable.ic_blood_pressure), contentDescription = null, modifier = Modifier.size(28.dp))
-                    Text("Давление", style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        }
-    }) { today ->
-        val visible = records?.filter { !today || Instant.ofEpochMilli(it.measuredAt).atZone(ZoneId.systemDefault()).toLocalDate() == currentDate }
-        Column(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-            if (editorId == null) error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            when {
-                visible == null -> CircularProgressIndicator()
-                visible.isEmpty() -> Text(if (today) "Сегодня измерений давления нет" else "Измерений давления пока нет", Modifier.padding(vertical = 24.dp))
-                else -> PressureRecordList(visible, groupByDate = !today) { open(it) }
-            }
-        }
-    }
-    val id = editorId
-    val values = initial
-    if (id != null && values != null) {
-        val close = { editorId = null; model.error.value = null }
-        ModalBottomSheet(
-            onDismissRequest = { if (!busy) close() },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
-            sheetGesturesEnabled = !busy,
-            properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !busy),
-        ) {
-            PressureEditor(id, values, editing, busy, error,
-                onSave = { model.save(id, editing, it, close) },
-                onDelete = { model.delete(id, close) }, onClose = close)
-        }
-    }
-}
 
 @Composable
 internal fun PressureEditor(
@@ -283,7 +194,7 @@ private fun NumberInput(label: String, value: String, busy: Boolean, modifier: M
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
             decorationBox = { field ->
                 Box(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(vertical = 4.dp),
-                    contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
+                    contentAlignment = Alignment.CenterStart) {
                     if (value.isEmpty()) Text("—", style = MaterialTheme.typography.displaySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.clearAndSetSemantics { })
                     field()

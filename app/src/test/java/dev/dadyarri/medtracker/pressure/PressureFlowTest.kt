@@ -10,6 +10,8 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.lifecycle.viewModelScope
 import androidx.room.Room
 import dev.dadyarri.medtracker.alarm.AlarmDatabase
+import dev.dadyarri.medtracker.measurements.MeasurementsHome
+import dev.dadyarri.medtracker.measurements.MeasurementViewModel
 import kotlinx.coroutines.cancel
 import org.junit.Rule
 import org.junit.Test
@@ -26,6 +28,7 @@ class PressureFlowTest {
     @Test fun todayFiltersAtLocalMidnightAndHistoryHasDateHeadings() {
         val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), AlarmDatabase::class.java).build()
         val model = PressureViewModel(db.pressure())
+        val measurements = MeasurementViewModel(db.measurements())
         val date = java.time.LocalDate.now()
         val start = date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
         val dateText = date.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.uuuu"))
@@ -35,32 +38,34 @@ class PressureFlowTest {
                 db.pressure().insert(PressureRecord("current", 120, 80, null, null, "", start, start, start))
                 db.pressure().insert(PressureRecord("previous", 130, 85, null, null, "", start - 1, start, start))
             }
-            compose.setContent { MaterialTheme { PressureHome(model) } }
+            compose.setContent { MaterialTheme { MeasurementsHome(model, measurements) } }
             compose.waitUntil(5_000) {
                 compose.onAllNodesWithContentDescription("Давление: 120 на 80").fetchSemanticsNodes().isNotEmpty()
             }
             compose.onNodeWithContentDescription("Давление: 130 на 85").assertDoesNotExist()
             compose.onNodeWithText(dateText).assertDoesNotExist()
             compose.onNode(hasText("История") and hasClickAction()).performClick()
+            compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.ScrollToIndex)).performScrollToNode(hasText(dateText))
             compose.onNodeWithText(dateText).assertExists()
-            val addButton = compose.onNodeWithText("Давление").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+            val addButton = compose.onNode(hasText("Давление") and !hasAnyAncestor(SemanticsMatcher.keyIsDefined(SemanticsActions.ScrollToIndex))).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
             val list = compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.ScrollToIndex))
             assertTrue(list.fetchSemanticsNode().boundsInRoot.bottom <= addButton.top)
             list.performScrollToNode(hasText(previousText))
             compose.onNodeWithText(previousText).assertExists()
             list.performScrollToNode(hasContentDescription("Давление: 130 на 85"))
             compose.onNodeWithContentDescription("Давление: 130 на 85").assertExists()
-            assertEquals(addButton, compose.onNodeWithText("Давление").assertIsDisplayed().fetchSemanticsNode().boundsInRoot)
+            assertEquals(addButton, compose.onNode(hasText("Давление") and !hasAnyAncestor(SemanticsMatcher.keyIsDefined(SemanticsActions.ScrollToIndex))).assertIsDisplayed().fetchSemanticsNode().boundsInRoot)
             compose.onNode(hasText("Настройки") and hasClickAction()).performClick()
-            compose.onNodeWithText("Давление").assertDoesNotExist()
-        } finally { model.viewModelScope.cancel(); db.close() }
+            compose.onNode(hasText("Давление") and hasClickAction()).assertDoesNotExist()
+        } finally { model.viewModelScope.cancel(); measurements.viewModelScope.cancel(); db.close() }
     }
 
     @Test fun createInTodayThenDeleteFromHistory() {
         val db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), AlarmDatabase::class.java).build()
         val model = PressureViewModel(db.pressure())
+        val measurements = MeasurementViewModel(db.measurements())
         try {
-            compose.setContent { MaterialTheme { PressureHome(model) } }
+            compose.setContent { MaterialTheme { MeasurementsHome(model, measurements) } }
             compose.onNodeWithText("Давление").performClick()
             compose.onNodeWithContentDescription("Верхнее").performTextInput("120")
             compose.onNodeWithContentDescription("Нижнее").performTextInput("80")
@@ -69,14 +74,15 @@ class PressureFlowTest {
                 compose.onAllNodesWithContentDescription("Давление: 120 на 80").fetchSemanticsNodes().size == 1
             }
             compose.onNode(hasText("История") and hasClickAction()).performClick()
-            compose.onNodeWithContentDescription("Давление: 120 на 80").performClick()
+            compose.onNodeWithContentDescription("Давление: 120 на 80").performScrollTo().performClick()
             compose.onNodeWithText("Удалить запись").performScrollTo().performClick()
             compose.onNodeWithText("Удалить", substring = false).performClick()
             compose.waitUntil(5_000) {
-                compose.onAllNodesWithText("Измерений давления пока нет").fetchSemanticsNodes().isNotEmpty()
+                compose.onAllNodesWithText("Нет измерений за выбранный период").fetchSemanticsNodes().isNotEmpty()
             }
         } finally {
             model.viewModelScope.cancel()
+            measurements.viewModelScope.cancel()
             db.close()
         }
     }

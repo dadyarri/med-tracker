@@ -116,7 +116,7 @@ private fun MedTrackerApp(model: AlarmViewModel = koinViewModel()) {
             },
             onFinish = model::finishWizard,
         )
-        else -> dev.dadyarri.medtracker.pressure.PressureHome()
+        else -> dev.dadyarri.medtracker.measurements.MeasurementsHome()
     }
 }
 
@@ -180,6 +180,7 @@ internal fun PermissionWizard(
 @Composable
 internal fun EmptyHome(
     recordActions: (@Composable () -> Unit)? = null,
+    settingsContent: @Composable () -> Unit = {},
     content: @Composable (today: Boolean) -> Unit = {},
 ) {
     var selected by rememberSaveable { mutableStateOf(Destination.TODAY.name) }
@@ -214,6 +215,7 @@ internal fun EmptyHome(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
             if (destination == Destination.TODAY || destination == Destination.HISTORY) content(destination == Destination.TODAY)
+            if (destination == Destination.SETTINGS) settingsContent()
         }
     }
 }
