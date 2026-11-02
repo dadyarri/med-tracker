@@ -19,6 +19,20 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - name: Restore persistent test signing key
+        shell: bash
+        env:
+          ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [[ -z "$ANDROID_DEBUG_KEYSTORE_BASE64" ]]; then
+            echo "::error::Set repository secret ANDROID_DEBUG_KEYSTORE_BASE64 using scripts/configure-ci-signing.sh. Refusing to generate a different APK signing key."
+            exit 1
+          fi
+          umask 077
+          mkdir -p "$HOME/.android"
+          printf '%s' "$ANDROID_DEBUG_KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
+          keytool -list -keystore "$HOME/.android/debug.keystore" \
+            -storepass android -alias androiddebugkey > /dev/null
       - uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: '13114758'
@@ -39,11 +53,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build, test and lint
         run: ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
+      - name: Verify APK and record public signing certificate
+        shell: bash
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs \
+            app/build/outputs/apk/debug/app-debug.apk \
+            | tee app/build/outputs/apk/debug/signing-certificate.txt
       - name: Upload installable debug APK
         uses: actions/upload-artifact@v4
         with:
           name: MedTracker-debug-${{ github.run_number }}
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/debug/signing-certificate.txt
           if-no-files-found: error
           retention-days: 14
       - name: Upload test and lint reports
