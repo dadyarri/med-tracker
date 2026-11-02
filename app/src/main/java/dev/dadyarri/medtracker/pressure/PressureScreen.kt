@@ -1,5 +1,8 @@
 package dev.dadyarri.medtracker.pressure
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,6 +15,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,6 +28,7 @@ import dev.dadyarri.medtracker.EmptyHome
 import org.koin.androidx.compose.koinViewModel
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.UUID
 
@@ -92,7 +100,13 @@ internal fun PressureEditor(
     var diastolic by rememberSaveable(id) { mutableStateOf(initial[1]) }
     var pulse by rememberSaveable(id) { mutableStateOf(initial[2]) }
     var time by rememberSaveable(id) { mutableStateOf(initial[3]) }
-    var context by rememberSaveable(id) { mutableStateOf(initial[4].ifEmpty { null }) }
+    var manualContext by rememberSaveable(id) { mutableStateOf(initial[4].ifEmpty { null }) }
+    var automaticContext by rememberSaveable(id) { mutableStateOf(!editing) }
+    var picker by rememberSaveable(id) { mutableStateOf<String?>(null) }
+    val localTime = runCatching { LocalDateTime.parse(time, PressureDraft.TIME_FORMAT) }.getOrElse { LocalDateTime.now() }
+    val context = if (automaticContext) PressureContext.forHour(localTime.hour).name else manualContext
+    val androidContext = LocalContext.current
+    val keyboard = LocalSoftwareKeyboardController.current
     var comment by rememberSaveable(id) { mutableStateOf(initial[5]) }
     var deleting by rememberSaveable(id) { mutableStateOf(false) }
     var confirmUnusual by rememberSaveable(id) { mutableStateOf(false) }
@@ -118,21 +132,36 @@ internal fun PressureEditor(
         NumberInput("Пульс, уд/мин · необязательно", pulse, busy, Modifier.focusRequester(pulseFocus)) { value ->
             val advance = completedNumber(pulse, value, '3'..'9', 30..220)
             pulse = value
-            if (advance) timeFocus.requestFocus()
+            if (advance) {
+                timeFocus.requestFocus()
+                keyboard?.hide()
+            }
         }
-        OutlinedTextField(time, { time = it }, label = { Text("Дата и время измерения") },
-            supportingText = { Text("дд.мм.гггг чч:мм") }, enabled = !busy, singleLine = true,
-            modifier = Modifier.fillMaxWidth().focusRequester(timeFocus))
+        Text("Дата и время измерения", style = MaterialTheme.typography.titleSmall)
+        OutlinedButton(onClick = { keyboard?.hide(); picker = "date" }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+            Text("Дата: " + localTime.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.uuuu")))
+        }
+        OutlinedButton(onClick = { keyboard?.hide(); picker = "time" }, enabled = !busy,
+            modifier = Modifier.fillMaxWidth().focusRequester(timeFocus).semantics { contentDescription = "Время измерения" }) {
+            Text("Время: " + localTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")))
+        }
         Text("Контекст · необязательно", style = MaterialTheme.typography.titleSmall)
+        FilterChip(automaticContext, { automaticContext = true }, label = { Text("Автоматически по времени") }, enabled = !busy)
         Column {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PressureContext.entries.take(2).forEach { item ->
-                    FilterChip(context == item.name, { context = if (context == item.name) null else item.name }, label = { Text(item.label) }, enabled = !busy)
+                    FilterChip(context == item.name, {
+                        manualContext = if (!automaticContext && context == item.name) null else item.name
+                        automaticContext = false
+                    }, label = { Text(item.label) }, enabled = !busy)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PressureContext.entries.drop(2).forEach { item ->
-                    FilterChip(context == item.name, { context = if (context == item.name) null else item.name }, label = { Text(item.label) }, enabled = !busy)
+                    FilterChip(context == item.name, {
+                        manualContext = if (!automaticContext && context == item.name) null else item.name
+                        automaticContext = false
+                    }, label = { Text(item.label) }, enabled = !busy)
                 }
             }
         }
@@ -148,6 +177,26 @@ internal fun PressureEditor(
         }) { Text(if (busy) "Сохранение…" else "Сохранить") }
         if (editing) OutlinedButton(onClick = { deleting = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Удалить запись") }
         TextButton(onClick = onClose, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Закрыть") }
+    }
+    if (picker != null) {
+        DisposableEffect(picker) {
+            val selected = localTime
+            val dialog = if (picker == "date") {
+                DatePickerDialog(androidContext, { _, year, month, day ->
+                    time = LocalDate.of(year, month + 1, day).atTime(selected.toLocalTime()).format(PressureDraft.TIME_FORMAT)
+                }, selected.year, selected.monthValue - 1, selected.dayOfMonth)
+            } else {
+                TimePickerDialog(androidContext, { _, hour, minute ->
+                    time = selected.withHour(hour).withMinute(minute).format(PressureDraft.TIME_FORMAT)
+                }, selected.hour, selected.minute, DateFormat.is24HourFormat(androidContext))
+            }
+            dialog.setOnDismissListener { picker = null }
+            dialog.show()
+            onDispose {
+                dialog.setOnDismissListener(null)
+                dialog.dismiss()
+            }
+        }
     }
     if (deleting) AlertDialog(onDismissRequest = { if (!busy) deleting = false },
         title = { Text("Удалить измерение?") }, text = { Text("Восстановить запись после удаления не получится.") },

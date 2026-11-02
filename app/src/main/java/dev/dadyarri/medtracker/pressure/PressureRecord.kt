@@ -8,7 +8,19 @@ import java.time.format.DateTimeFormatter
 import java.time.format.ResolverStyle
 
 enum class PressureContext(val label: String) {
-    MORNING("Утро"), DAY("День"), EVENING("Вечер"), NIGHT("Ночь")
+    MORNING("Утро"), DAY("День"), EVENING("Вечер"), NIGHT("Ночь");
+
+    companion object {
+        fun forHour(hour: Int): PressureContext {
+            require(hour in 0..23)
+            return when (hour) {
+                in 6..11 -> MORNING
+                in 12..17 -> DAY
+                in 18..23 -> EVENING
+                else -> NIGHT
+            }
+        }
+    }
 }
 
 @Entity(tableName = "blood_pressure", indices = [Index("measuredAt")])

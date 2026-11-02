@@ -33,7 +33,7 @@ class PressureEditorTest {
             assertEquals("120", record.systolic)
             assertEquals("80", record.diastolic)
             assertEquals("", record.pulse)
-            assertNull(record.context)
+            assertEquals(PressureContext.MORNING.name, record.context)
         }
     }
 
@@ -65,7 +65,7 @@ class PressureEditorTest {
         pulse.performTextInput("7")
         pulse.assertIsFocused()
         pulse.performTextInput("2")
-        compose.onNodeWithText("Дата и время измерения").assertIsFocused()
+        compose.onNodeWithContentDescription("Время измерения").assertIsFocused()
     }
 
     @Test fun threeDigitPressureWaitsForThirdDigitAndDeletionDoesNotAdvance() {
@@ -84,6 +84,56 @@ class PressureEditorTest {
         sys.assertIsFocused()
         sys.performTextClearance()
         sys.assertIsFocused()
+    }
+
+    @Test fun pickersUpdateAutomaticContextButRespectManualSelection() {
+        var saved: PressureDraft? = null
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            MaterialTheme { PressureEditor("new", empty, false, false, null, { saved = it }, {}, {}) }
+        }
+        compose.onNodeWithText("Утро").assertIsSelected()
+        compose.onNodeWithContentDescription("Время измерения").performScrollTo().performClick()
+        compose.runOnIdle {
+            val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as android.app.TimePickerDialog
+            dialog.updateTime(20, 15)
+            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        }
+        compose.onNodeWithText("Вечер").assertIsSelected()
+        compose.onNodeWithText("Ночь").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Время измерения").performScrollTo().performClick()
+        compose.runOnIdle {
+            val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as android.app.TimePickerDialog
+            dialog.updateTime(12, 0)
+            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        }
+        restoration.emulateSavedInstanceStateRestore()
+        compose.onNodeWithText("Ночь").assertIsSelected()
+        compose.onNodeWithText("Автоматически по времени").performScrollTo().performClick()
+        compose.onNodeWithText("День").assertIsSelected()
+        compose.onNodeWithText("Дата: 03.11.2026").performScrollTo().performClick()
+        compose.runOnIdle {
+            val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as android.app.DatePickerDialog
+            dialog.updateDate(2026, 1, 28)
+            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        }
+        compose.onNodeWithText("Дата: 28.02.2026").assertExists()
+        compose.onNodeWithText("Верхнее, мм рт. ст.").performScrollTo().performTextInput("120")
+        compose.onNodeWithText("Нижнее, мм рт. ст.").performTextInput("80")
+        compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+        compose.runOnIdle {
+            val result = requireNotNull(saved)
+            assertEquals("28.02.2026 12:00", result.time)
+            assertEquals(PressureContext.DAY.name, result.context)
+        }
+    }
+
+    @Test fun existingContextIsNotReplacedWhenOpeningEditor() {
+        compose.setContent {
+            MaterialTheme { PressureEditor("edit", empty.toMutableList().apply { this[4] = "NIGHT" }, true, false, null, {}, {}, {}) }
+        }
+        compose.onNodeWithText("Ночь").assertIsSelected()
+        compose.onNodeWithText("Автоматически по времени").assertIsNotSelected()
     }
 
     @Test fun deletionNeedsExplicitConfirmation() {

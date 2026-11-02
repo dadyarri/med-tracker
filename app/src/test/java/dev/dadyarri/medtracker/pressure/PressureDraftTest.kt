@@ -23,6 +23,13 @@ class PressureDraftTest {
         assertTrue(unusual.unusual())
         assertFalse(valid.unusual())
     }
+    @Test fun automaticContextUsesDayPartBoundaries() {
+        for (hour in listOf(0, 5)) assertEquals(PressureContext.NIGHT, PressureContext.forHour(hour))
+        for (hour in listOf(6, 11)) assertEquals(PressureContext.MORNING, PressureContext.forHour(hour))
+        for (hour in listOf(12, 17)) assertEquals(PressureContext.DAY, PressureContext.forHour(hour))
+        for (hour in listOf(18, 23)) assertEquals(PressureContext.EVENING, PressureContext.forHour(hour))
+    }
+
     @Test fun timestampRoundTripsAtMinutePrecision() {
         assertEquals(valid.time, PressureDraft.format(valid.instant()!!))
     }
