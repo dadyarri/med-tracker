@@ -4,10 +4,8 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.BasicTextField
@@ -19,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import dev.dadyarri.medtracker.R
@@ -31,6 +30,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import kotlinx.coroutines.delay
 import dev.dadyarri.medtracker.EmptyHome
 import org.koin.androidx.compose.koinViewModel
 import java.time.Instant
@@ -48,6 +49,19 @@ fun PressureHome(model: PressureViewModel = koinViewModel()) {
     var editorId by rememberSaveable { mutableStateOf<String?>(null) }
     var editing by rememberSaveable { mutableStateOf(false) }
     var initial by rememberSaveable { mutableStateOf<List<String>?>(null) }
+    var currentDate by remember { mutableStateOf(LocalDate.now()) }
+    LifecycleResumeEffect(Unit) {
+        currentDate = LocalDate.now()
+        onPauseOrDispose { }
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = java.time.ZonedDateTime.now()
+            val nextDay = now.toLocalDate().plusDays(1).atStartOfDay(now.zone)
+            delay(java.time.Duration.between(now, nextDay).toMillis().coerceAtLeast(1))
+            currentDate = LocalDate.now()
+        }
+    }
 
     fun open(record: PressureRecord?) {
         val draft = record?.let(PressureDraft::from)
@@ -57,27 +71,35 @@ fun PressureHome(model: PressureViewModel = koinViewModel()) {
         editorId = record?.id ?: UUID.randomUUID().toString()
         model.error.value = null
     }
-    EmptyHome { today ->
-        val visible = records?.filter { !today || Instant.ofEpochMilli(it.measuredAt).atZone(ZoneId.systemDefault()).toLocalDate() == LocalDate.now() }
+    EmptyHome(recordActions = {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Surface(
+                onClick = { open(null) },
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ) {
+                Column(
+                    modifier = Modifier.widthIn(min = 88.dp).heightIn(min = 80.dp).padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+                ) {
+                    Icon(painterResource(R.drawable.ic_blood_pressure), contentDescription = null, modifier = Modifier.size(28.dp))
+                    Text("Давление", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+    }) { today ->
+        val visible = records?.filter { !today || Instant.ofEpochMilli(it.measuredAt).atZone(ZoneId.systemDefault()).toLocalDate() == currentDate }
         Column(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-            Button(onClick = { open(null) }, modifier = Modifier.fillMaxWidth()) { Text("Записать давление") }
             if (editorId == null) error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             when {
                 visible == null -> CircularProgressIndicator()
                 visible.isEmpty() -> Text(if (today) "Сегодня измерений давления нет" else "Измерений давления пока нет", Modifier.padding(vertical = 24.dp))
-                else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 16.dp)) {
-                    items(visible, key = { it.id }) { row ->
-                        Card(Modifier.fillMaxWidth().clickable { open(row) }) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("${row.systolic}/${row.diastolic} мм рт. ст.", style = MaterialTheme.typography.titleLarge)
-                                row.pulse?.let { Text("Пульс: $it уд/мин") }
-                                Text(PressureDraft.format(row.measuredAt))
-                                row.context?.let { value -> PressureContext.entries.find { it.name == value }?.let { Text(it.label) } }
-                                if (row.comment.isNotBlank()) Text(row.comment)
-                            }
-                        }
-                    }
-                }
+                else -> PressureRecordList(visible, groupByDate = !today) { open(it) }
             }
         }
     }
@@ -147,17 +169,21 @@ internal fun PressureEditor(
                 keyboard?.hide()
             }
         }
-        OutlinedButton(onClick = { keyboard?.hide(); picker = "date" }, enabled = !busy,
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Дата измерения" }) {
-            Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(localTime.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.uuuu")))
-        }
-        OutlinedButton(onClick = { keyboard?.hide(); picker = "time" }, enabled = !busy,
-            modifier = Modifier.fillMaxWidth().focusRequester(timeFocus).semantics { contentDescription = "Время измерения" }) {
-            Icon(painterResource(R.drawable.ic_clock), contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(localTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = { keyboard?.hide(); picker = "date" }, enabled = !busy,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.weight(1.3f).semantics { contentDescription = "Дата измерения" }) {
+                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(localTime.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.uuuu")))
+            }
+            OutlinedButton(onClick = { keyboard?.hide(); picker = "time" }, enabled = !busy,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.weight(1f).focusRequester(timeFocus).semantics { contentDescription = "Время измерения" }) {
+                Icon(painterResource(R.drawable.ic_clock), contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(localTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")))
+            }
         }
         Text("Контекст", style = MaterialTheme.typography.titleSmall)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -220,12 +246,7 @@ internal fun PressureEditor(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ContextButton(item: PressureContext, checked: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val icon = when (item) {
-        PressureContext.MORNING -> R.drawable.ic_context_morning
-        PressureContext.DAY -> R.drawable.ic_context_day
-        PressureContext.EVENING -> R.drawable.ic_context_evening
-        PressureContext.NIGHT -> R.drawable.ic_context_night
-    }
+    val icon = item.iconResource
     TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
         tooltip = { PlainTooltip { Text(item.label) } },

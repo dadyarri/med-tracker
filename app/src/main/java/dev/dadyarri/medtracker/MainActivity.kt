@@ -178,7 +178,10 @@ internal fun PermissionWizard(
 }
 
 @Composable
-internal fun EmptyHome(content: @Composable (today: Boolean) -> Unit = {}) {
+internal fun EmptyHome(
+    recordActions: (@Composable () -> Unit)? = null,
+    content: @Composable (today: Boolean) -> Unit = {},
+) {
     var selected by rememberSaveable { mutableStateOf(Destination.TODAY.name) }
     val destination = Destination.valueOf(selected)
     BackHandler(enabled = destination != Destination.TODAY) { selected = Destination.TODAY.name }
@@ -190,14 +193,21 @@ internal fun EmptyHome(content: @Composable (today: Boolean) -> Unit = {}) {
             }
         },
         bottomBar = {
-            NavigationBar {
-                Destination.entries.forEach { item ->
-                    NavigationBarItem(
-                        selected = item == destination,
-                        onClick = { selected = item.name },
-                        icon = { Icon(item.icon, contentDescription = null) },
-                        label = { Text(item.title) },
-                    )
+            Column {
+                if (destination == Destination.TODAY || destination == Destination.HISTORY) {
+                    recordActions?.let { actions ->
+                        Surface(color = MaterialTheme.colorScheme.surfaceContainer) { actions() }
+                    }
+                }
+                NavigationBar {
+                    Destination.entries.forEach { item ->
+                        NavigationBarItem(
+                            selected = item == destination,
+                            onClick = { selected = item.name },
+                            icon = { Icon(item.icon, contentDescription = null) },
+                            label = { Text(item.title) },
+                        )
+                    }
                 }
             }
         },
