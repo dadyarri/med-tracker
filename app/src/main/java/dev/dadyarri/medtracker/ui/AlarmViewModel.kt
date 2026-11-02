@@ -52,7 +52,10 @@ class AlarmViewModel(application: Application, private val controller: AlarmCont
             maxVolume = audio.getStreamMaxVolume(AudioManager.STREAM_ALARM),
             dnd = manager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL,
         )
-        execute { controller.reconcile() }
+        execute {
+            controller.reconcile()
+            org.koin.core.context.GlobalContext.get().get<dev.dadyarri.medtracker.reminders.ReminderAlarmController>().reconcile()
+        }
     }
 
     fun execute(block: suspend () -> Unit) {

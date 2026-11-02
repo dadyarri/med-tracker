@@ -27,9 +27,13 @@ fun ReminderSettingsScreen(
     val values by model.settings.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
     val error by model.error.collectAsStateWithLifecycle()
+    val schedulingMessage by model.schedulingMessage.collectAsStateWithLifecycle()
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp),
         contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         error?.let { item("error") { Text(it, color = MaterialTheme.colorScheme.error) } }
+        schedulingMessage?.let { item("scheduling_error") { Text(it, color = MaterialTheme.colorScheme.error) } }
+        item("permission_status") { ReminderPermissionStatus() }
+        item("alarm_sound") { AlarmSoundSetting() }
         if (values.isEmpty() && error == null) item("loading") { CircularProgressIndicator() }
         item("measurements_title") { Text("Измерения", style = MaterialTheme.typography.titleMedium) }
         items(values.filter { it.kind in listOf(ReminderKind.PRESSURE, ReminderKind.WEIGHT) },

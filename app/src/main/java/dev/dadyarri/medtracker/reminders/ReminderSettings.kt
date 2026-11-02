@@ -67,7 +67,9 @@ class ReminderSettingsStore(private val context: Context) {
         }
     }
 }
-class ReminderSettingsViewModel(private val store: ReminderSettingsStore) : ViewModel() {
+class ReminderSettingsViewModel(private val store: ReminderSettingsStore,
+    private val scheduler: ReminderAlarmController? = null) : ViewModel() {
+    val schedulingMessage = scheduler?.message ?: MutableStateFlow<String?>(null)
     val error = MutableStateFlow<String?>(null)
     val busy = MutableStateFlow(false)
     val settings = store.settings.catch {
@@ -78,7 +80,7 @@ class ReminderSettingsViewModel(private val store: ReminderSettingsStore) : View
         if (busy.value) return
         busy.value = true; error.value = null
         viewModelScope.launch {
-            try { store.save(value) }
+            try { store.save(value); scheduler?.reconcile() }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { error.value = "Не удалось сохранить настройки. Повторите попытку." }
             finally { busy.value = false }

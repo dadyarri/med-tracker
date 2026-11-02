@@ -27,6 +27,12 @@
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
+        <activity android:name=".reminders.ReminderAlarmActivity" android:exported="false"
+            android:launchMode="singleTop" android:taskAffinity="${applicationId}.reminder"
+            android:excludeFromRecents="true" android:showWhenLocked="true" android:turnScreenOn="true" />
+        <receiver android:name=".reminders.ReminderAlarmReceiver" android:exported="false" />
+        <service android:name=".reminders.ReminderSoundService" android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
         <service android:name=".alarm.AlarmSoundService" android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
     </application>

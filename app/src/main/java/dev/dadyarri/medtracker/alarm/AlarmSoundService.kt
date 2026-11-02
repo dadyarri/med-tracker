@@ -3,11 +3,8 @@ package dev.dadyarri.medtracker.alarm
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.media.AudioAttributes
 import android.media.MediaPlayer
-import android.media.RingtoneManager
 import android.os.IBinder
-import android.os.PowerManager
 import kotlinx.coroutines.*
 import org.koin.core.context.GlobalContext
 
@@ -30,22 +27,15 @@ class AlarmSoundService : Service() {
                 val plan = withTimeout(3_000) { controller.ringingPlan(token) }
                     ?: run { stopSelf(startId); return@launch }
                 startForeground(AlarmNotifications.ID, AlarmNotifications(this@AlarmSoundService).build(plan, true), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-                val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                player = MediaPlayer()
-                player!!.apply {
-                    setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
-                    setWakeMode(this@AlarmSoundService, PowerManager.PARTIAL_WAKE_LOCK)
-                    setDataSource(this@AlarmSoundService, uri)
-                    isLooping = true
-                    setOnErrorListener { _, _, _ ->
-                        controller.scope.launch { controller.audioFailure(token); controller.action(AlarmController.MUTE, token) }
-                        true
-                    }
-                    prepare()
-                    start()
+                val uri = withContext(Dispatchers.IO) {
+                    GlobalContext.get().get<dev.dadyarri.medtracker.reminders.AlarmToneStore>().current()
                 }
+                player = prepareAlarmAudio(this@AlarmSoundService, uri)
+                player?.setOnErrorListener { _, _, _ ->
+                    controller.scope.launch { controller.audioFailure(token); controller.action(AlarmController.MUTE, token) }
+                    true
+                }
+                player?.start()
                 // Bound a single audible burst; repeat/snooze remain managed by AlarmManager.
                 delay(60_000)
                 controller.scope.launch { controller.action(AlarmController.MUTE, token) }

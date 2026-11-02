@@ -20,6 +20,10 @@ class AlarmReceiver : BroadcastReceiver() {
                         if (intent.action == Intent.ACTION_BOOT_COMPLETED) "Перезагрузка" else "Обновление APK")
                     "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" -> controller.reconcile()
                 }
+                if (intent.action in listOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED,
+                        "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"))
+                    GlobalContext.get().get<dev.dadyarri.medtracker.reminders.ReminderAlarmController>()
+                        .reconcile(intent.action != "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED")
             } catch (_: Exception) {
                 controller.message.value = "Не удалось обработать сигнал. Откройте приложение и повторите согласование."
             } finally { result.finish() }

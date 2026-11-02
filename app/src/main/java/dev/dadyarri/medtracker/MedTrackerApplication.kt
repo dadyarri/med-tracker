@@ -18,7 +18,9 @@ class MedTrackerApplication : Application() {
                 single { Room.databaseBuilder(get(), AlarmDatabase::class.java, "alarm-spike.db").build() }
                 single { AlarmController(get(), get()) }
                 single { dev.dadyarri.medtracker.reminders.ReminderSettingsStore(get()) }
-                viewModel { dev.dadyarri.medtracker.reminders.ReminderSettingsViewModel(get()) }
+                single { dev.dadyarri.medtracker.reminders.AlarmToneStore(get()) }
+                single { dev.dadyarri.medtracker.reminders.ReminderAlarmController(get(), get(), get()) }
+                viewModel { dev.dadyarri.medtracker.reminders.ReminderSettingsViewModel(get(), get()) }
                 viewModel { AlarmViewModel(get(), get()) }
                 single { get<AlarmDatabase>().pressure() }
                 viewModel { dev.dadyarri.medtracker.pressure.PressureViewModel(get()) }
@@ -28,5 +30,6 @@ class MedTrackerApplication : Application() {
                 viewModel { dev.dadyarri.medtracker.measurements.MeasurementViewModel(get(), get()) }
             })
         }
+        org.koin.core.context.GlobalContext.get().get<dev.dadyarri.medtracker.reminders.ReminderAlarmController>().start()
     }
 }
