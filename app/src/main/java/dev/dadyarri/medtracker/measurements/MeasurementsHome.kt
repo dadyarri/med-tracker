@@ -3,6 +3,7 @@ package dev.dadyarri.medtracker.measurements
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
@@ -99,6 +100,16 @@ fun MeasurementsHome(
     }
     val all = (journal(pressures.orEmpty(), weights.orEmpty(), glucose.orEmpty()) + meals.map(JournalEntry::Meal))
         .sortedWith(compareByDescending<JournalEntry> { it.at }.thenByDescending { it.createdAt }.thenBy { it.key })
+    val listState = rememberLazyListState()
+    var knownKeys by remember { mutableStateOf<Set<String>?>(null) }
+    val keys = all.map { it.key }.toSet()
+    LaunchedEffect(keys, pressures != null && weights != null && glucose != null) {
+        if (pressures != null && weights != null && glucose != null) {
+            val previous = knownKeys
+            knownKeys = keys
+            if (previous != null && keys.any { it !in previous }) listState.scrollToItem(0)
+        }
+    }
     val filter = HistoryFilter(
         type?.let(JournalType::valueOf),
         when (period) { "all" -> null; "custom" -> LocalDate.parse(from); else -> currentDate.minusDays(period.toLong() - 1) },
@@ -125,7 +136,7 @@ fun MeasurementsHome(
     }) { today ->
         val visible = if (today) HistoryFilter(start = currentDate, end = currentDate).apply(all) else filter.apply(all)
         val loaded = pressures != null && weights != null && glucose != null
-        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp),
+        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp), state = listState,
             contentPadding = PaddingValues(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (today && cycle?.active == true) item("glucose_plan") {
                 val tasks = dev.dadyarri.medtracker.meals.GlucoseCyclePlan.tasks(cycle!!, currentDate, meals, ZoneId.systemDefault())
@@ -165,8 +176,7 @@ fun MeasurementsHome(
                         when (entry) {
                             is JournalEntry.Meal -> dev.dadyarri.medtracker.ui.MeasurementCardFrame(
                                 "Еда: ${MealType.valueOf(entry.record.type).label}", entry.at, emptyList(), { mealEditor = entry.id }) {
-                                Text(MealType.valueOf(entry.record.type).label, style = MaterialTheme.typography.titleSmall)
-                                Text("Начал есть", style = MaterialTheme.typography.headlineSmall)
+                                Text(MealType.valueOf(entry.record.type).label, style = MaterialTheme.typography.displaySmall)
                             }
                             is JournalEntry.Pressure -> PressureHistoryCard(entry.record) { open(entry, entry.type) }
                             else -> MeasurementCard(entry, glucoseUnit) { open(entry, entry.type) }
