@@ -1,6 +1,5 @@
 package dev.dadyarri.medtracker.reminders
 
-import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,7 +19,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.androidx.compose.koinViewModel
-import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -36,14 +34,15 @@ fun ReminderSettingsScreen(
         error?.let { item("error") { Text(it, color = MaterialTheme.colorScheme.error) } }
         if (values.isEmpty() && error == null) item("loading") { CircularProgressIndicator() }
         item("measurements_title") { Text("Измерения", style = MaterialTheme.typography.titleMedium) }
-        items(values.filter { it.kind in listOf(ReminderKind.PRESSURE, ReminderKind.WEIGHT, ReminderKind.GLUCOSE) },
+        items(values.filter { it.kind in listOf(ReminderKind.PRESSURE, ReminderKind.WEIGHT) },
             key = { it.kind }) { ReminderCard(it, busy, model::save) }
+        item("glucose_cycle") { extra() }
         item("meals_title") { Text("Питание", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp)) }
-        items(values.filter { it.kind !in listOf(ReminderKind.PRESSURE, ReminderKind.WEIGHT, ReminderKind.GLUCOSE) },
+        items(values.filter { it.kind !in listOf(ReminderKind.PRESSURE, ReminderKind.WEIGHT) },
             key = { it.kind }) { ReminderCard(it, busy, model::save) }
-        item("extra") { extra() }
     }
 }
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ReminderCard(value: ReminderSetting, busy: Boolean, onSave: (ReminderSetting) -> Unit) {
     var picker by rememberSaveable(value.kind) { mutableStateOf<String?>(null) }
@@ -94,12 +93,21 @@ internal fun ReminderCard(value: ReminderSetting, busy: Boolean, onSave: (Remind
             onSave(value.copy(weeks = weeks.toInt())); frequency = false
         }) { Text("Сохранить") } },
         dismissButton = { TextButton(onClick = { frequency = false }) { Text("Отмена") } })
-    if (picker != null) DisposableEffect(picker) {
-        val dialog = if (picker == "time") TimePickerDialog(context, { _, h, m ->
+    if (picker == "date") {
+        val state = rememberDatePickerState(initialSelectedDateMillis = value.anchor.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli())
+        DatePickerDialog(onDismissRequest = { picker = null },
+            confirmButton = { TextButton(enabled = !busy && state.selectedDateMillis != null, onClick = {
+                val selected = java.time.Instant.ofEpochMilli(state.selectedDateMillis!!).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                onSave(value.copy(anchor = selected)); picker = null
+            }) { Text("Выбрать") } },
+            dismissButton = { TextButton(onClick = { picker = null }) { Text("Отмена") } }) {
+            DatePicker(state = state, showModeToggle = false)
+        }
+    }
+    if (picker == "time") DisposableEffect(Unit) {
+        val dialog = TimePickerDialog(context, { _, h, m ->
             onSave(value.copy(minute = h * 60 + m))
         }, value.minute / 60, value.minute % 60, android.text.format.DateFormat.is24HourFormat(context))
-        else DatePickerDialog(context, { _, y, m, d -> onSave(value.copy(anchor = LocalDate.of(y, m + 1, d))) },
-            value.anchor.year, value.anchor.monthValue - 1, value.anchor.dayOfMonth)
         dialog.setOnDismissListener { picker = null }; dialog.show()
         onDispose { dialog.setOnDismissListener(null); dialog.dismiss() }
     }

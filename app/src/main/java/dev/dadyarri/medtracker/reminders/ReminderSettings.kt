@@ -15,7 +15,6 @@ import java.time.temporal.ChronoUnit
 enum class ReminderKind(val label: String, val icon: Int, val defaultMinute: Int) {
     PRESSURE("Давление", R.drawable.ic_blood_pressure, 480),
     WEIGHT("Вес", R.drawable.ic_weight, 480),
-    GLUCOSE("Глюкоза", R.drawable.ic_glucose, 480),
     BREAKFAST("Завтрак", R.drawable.ic_context_morning, 480),
     LUNCH("Обед", R.drawable.ic_context_day, 780),
     DINNER("Ужин", R.drawable.ic_context_evening, 1140),
