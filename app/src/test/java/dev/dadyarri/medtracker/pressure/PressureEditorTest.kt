@@ -49,6 +49,43 @@ class PressureEditorTest {
         compose.runOnIdle { assertEquals(1, saves) }
     }
 
+    @Test fun twoDigitPressureAdvancesToPulseAndThenTime() {
+        compose.setContent { MaterialTheme { PressureEditor("new", empty, false, false, null, {}, {}, {}) } }
+        val sys = compose.onNodeWithText("Верхнее, мм рт. ст.")
+        val dia = compose.onNodeWithText("Нижнее, мм рт. ст.")
+        val pulse = compose.onNodeWithText("Пульс, уд/мин · необязательно")
+        sys.performClick().performTextInput("7")
+        sys.assertIsFocused()
+        sys.performTextInput("5")
+        dia.assertIsFocused()
+        dia.performTextInput("8")
+        dia.assertIsFocused()
+        dia.performTextInput("0")
+        pulse.assertIsFocused()
+        pulse.performTextInput("7")
+        pulse.assertIsFocused()
+        pulse.performTextInput("2")
+        compose.onNodeWithText("Дата и время измерения").assertIsFocused()
+    }
+
+    @Test fun threeDigitPressureWaitsForThirdDigitAndDeletionDoesNotAdvance() {
+        compose.setContent { MaterialTheme { PressureEditor("new", empty, false, false, null, {}, {}, {}) } }
+        val sys = compose.onNodeWithText("Верхнее, мм рт. ст.")
+        val dia = compose.onNodeWithText("Нижнее, мм рт. ст.")
+        sys.performClick().performTextInput("12")
+        sys.assertIsFocused()
+        sys.performTextInput("0")
+        dia.assertIsFocused()
+        dia.performTextInput("10")
+        dia.assertIsFocused()
+        dia.performTextInput("0")
+        compose.onNodeWithText("Пульс, уд/мин · необязательно").assertIsFocused()
+        sys.performClick().performTextReplacement("12")
+        sys.assertIsFocused()
+        sys.performTextClearance()
+        sys.assertIsFocused()
+    }
+
     @Test fun deletionNeedsExplicitConfirmation() {
         var deletes = 0
         compose.setContent {

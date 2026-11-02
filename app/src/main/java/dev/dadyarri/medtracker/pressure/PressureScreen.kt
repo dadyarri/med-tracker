@@ -12,6 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -95,16 +97,32 @@ internal fun PressureEditor(
     var deleting by rememberSaveable(id) { mutableStateOf(false) }
     var confirmUnusual by rememberSaveable(id) { mutableStateOf(false) }
     var attempted by rememberSaveable(id) { mutableStateOf(false) }
+    val diastolicFocus = remember { FocusRequester() }
+    val pulseFocus = remember { FocusRequester() }
+    val timeFocus = remember { FocusRequester() }
     val draft = PressureDraft(systolic, diastolic, pulse, time, context, comment)
     BackHandler(enabled = busy) { }
     Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(if (editing) "Изменить давление" else "Записать давление", style = MaterialTheme.typography.headlineSmall)
-        NumberInput("Верхнее, мм рт. ст.", systolic, busy) { systolic = it }
-        NumberInput("Нижнее, мм рт. ст.", diastolic, busy) { diastolic = it }
-        NumberInput("Пульс, уд/мин · необязательно", pulse, busy) { pulse = it }
+        NumberInput("Верхнее, мм рт. ст.", systolic, busy) { value ->
+            val advance = completedNumber(systolic, value, '7'..'9', 70..250)
+            systolic = value
+            if (advance) diastolicFocus.requestFocus()
+        }
+        NumberInput("Нижнее, мм рт. ст.", diastolic, busy, Modifier.focusRequester(diastolicFocus)) { value ->
+            val advance = completedNumber(diastolic, value, '4'..'9', 40..150)
+            diastolic = value
+            if (advance) pulseFocus.requestFocus()
+        }
+        NumberInput("Пульс, уд/мин · необязательно", pulse, busy, Modifier.focusRequester(pulseFocus)) { value ->
+            val advance = completedNumber(pulse, value, '3'..'9', 30..220)
+            pulse = value
+            if (advance) timeFocus.requestFocus()
+        }
         OutlinedTextField(time, { time = it }, label = { Text("Дата и время измерения") },
-            supportingText = { Text("дд.мм.гггг чч:мм") }, enabled = !busy, singleLine = true, modifier = Modifier.fillMaxWidth())
+            supportingText = { Text("дд.мм.гггг чч:мм") }, enabled = !busy, singleLine = true,
+            modifier = Modifier.fillMaxWidth().focusRequester(timeFocus))
         Text("Контекст · необязательно", style = MaterialTheme.typography.titleSmall)
         Column {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -141,8 +159,16 @@ internal fun PressureEditor(
         dismissButton = { TextButton(onClick = { confirmUnusual = false }) { Text("Проверить") } })
 }
 
+// Advance only on appended input; deleting, restoring a draft or opening an edit
+// must not unexpectedly move focus. These ranges affect focus, never validation.
+private fun completedNumber(previous: String, value: String, twoDigitStart: CharRange, range: IntRange): Boolean =
+    value.length > previous.length && value.startsWith(previous) &&
+        value.all { it in '0'..'9' } && value.toIntOrNull()?.let { it in range } == true &&
+        ((value.length == 2 && value.first() in twoDigitStart) ||
+            (value.length == 3 && value.first() in '1'..'2'))
+
 @Composable
-private fun NumberInput(label: String, value: String, busy: Boolean, onChange: (String) -> Unit) {
+private fun NumberInput(label: String, value: String, busy: Boolean, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
     OutlinedTextField(value, onChange, label = { Text(label) }, enabled = !busy,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = modifier.fillMaxWidth())
 }
