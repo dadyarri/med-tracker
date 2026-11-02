@@ -97,8 +97,22 @@ internal fun Analytics(entries: List<JournalEntry>, unit: GlucoseUnit) {
                     values.forEach { item ->
                         val stats = item.summary()!!
                         Text("${item.title}, ${item.unit}", style = MaterialTheme.typography.labelLarge)
-                        Text("Среднее ${decimalText(stats.average)} · мин. ${decimalText(stats.minimum)} · макс. ${decimalText(stats.maximum)}",
-                            style = MaterialTheme.typography.bodyMedium)
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            maxItemsInEachRow = 3,
+                        ) {
+                            listOf("Минимум" to stats.minimum, "Максимум" to stats.maximum, "Среднее" to stats.average)
+                                .forEach { (label, value) ->
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier.semantics(mergeDescendants = true) {}) {
+                                        Text(decimalText(value), style = MaterialTheme.typography.displaySmall)
+                                        Text(label, style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                        }
                         Text("Измерений: ${stats.count}", style = MaterialTheme.typography.bodySmall)
                     }
                 }
