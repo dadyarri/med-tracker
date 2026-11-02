@@ -20,8 +20,22 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '13114758'
+          # Accept explicitly below, after the action exports ANDROID_HOME.
+          accept-android-sdk-licenses: false
+          log-accepted-android-sdk-licenses: false
+          packages: ''
+      - name: Accept Android SDK licenses
+        shell: bash
+        run: |
+          # A finite input file preserves sdkmanager's exit status under pipefail.
+          # `yes | sdkmanager` can otherwise fail with SIGPIPE after success.
+          answers="${RUNNER_TEMP}/android-sdk-license-answers.txt"
+          for i in {1..100}; do echo y; done > "$answers"
+          sdkmanager --sdk_root="$ANDROID_HOME" --licenses < "$answers"
       - name: Install Android SDK
-        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'platform-tools'
+        run: sdkmanager --sdk_root="$ANDROID_HOME" 'platforms;android-36' 'build-tools;35.0.0' 'platform-tools'
       - uses: gradle/actions/setup-gradle@v4
       - name: Build, test and lint
         run: ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
