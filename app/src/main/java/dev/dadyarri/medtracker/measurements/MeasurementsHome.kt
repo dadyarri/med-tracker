@@ -223,7 +223,7 @@ fun MeasurementsHome(
 }
 
 internal val JournalType.icon: Int get() = when (this) {
-    JournalType.MEAL -> R.drawable.ic_context_fasting
+    JournalType.MEAL -> R.drawable.ic_meal
     JournalType.PRESSURE -> R.drawable.ic_blood_pressure
     JournalType.WEIGHT -> R.drawable.ic_weight
     JournalType.GLUCOSE -> R.drawable.ic_glucose

@@ -18,7 +18,7 @@ enum class ReminderKind(val label: String, val icon: Int, val defaultMinute: Int
     BREAKFAST("Завтрак", R.drawable.ic_context_morning, 480),
     LUNCH("Обед", R.drawable.ic_context_day, 780),
     DINNER("Ужин", R.drawable.ic_context_evening, 1140),
-    SNACK("Перекус", R.drawable.ic_context_fasting, 960),
+    SNACK("Перекус", R.drawable.ic_meal, 960),
 }
 data class ReminderSetting(
     val kind: ReminderKind, val paused: Boolean = true,

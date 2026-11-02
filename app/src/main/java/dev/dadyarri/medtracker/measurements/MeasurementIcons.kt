@@ -6,7 +6,7 @@ internal val MealType.icon: Int get() = when (this) {
     MealType.BREAKFAST -> R.drawable.ic_context_morning
     MealType.LUNCH -> R.drawable.ic_context_day
     MealType.DINNER -> R.drawable.ic_context_evening
-    MealType.SNACK -> R.drawable.ic_context_fasting
+    MealType.SNACK -> R.drawable.ic_meal
 }
 internal val FoodContext.icon: Int get() = when (this) {
     FoodContext.FASTING -> R.drawable.ic_context_fasting
