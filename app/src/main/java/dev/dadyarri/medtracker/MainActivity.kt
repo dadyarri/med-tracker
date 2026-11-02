@@ -15,6 +15,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -40,11 +46,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination(val title: String, val icon: Int) {
-    TODAY("Сегодня", R.drawable.ic_calendar),
-    HISTORY("История", R.drawable.ic_history),
-    MEDICATIONS("Лекарства", R.drawable.ic_heart),
-    SETTINGS("Настройки", R.drawable.ic_settings),
+private enum class Destination(val title: String, val icon: ImageVector) {
+    TODAY("Сегодня", Icons.Default.DateRange),
+    HISTORY("История", Icons.AutoMirrored.Filled.List),
+    MEDICATIONS("Лекарства", Icons.Default.Favorite),
+    SETTINGS("Настройки", Icons.Default.Settings),
 }
 
 private data class PermissionStep(val title: String, val description: String, val icon: Int)
@@ -201,7 +207,7 @@ internal fun EmptyHome(
                         NavigationBarItem(
                             selected = item == destination,
                             onClick = { selected = item.name },
-                            icon = { Icon(androidx.compose.ui.res.painterResource(item.icon), contentDescription = null) },
+                            icon = { Icon(item.icon, contentDescription = null) },
                             label = { Text(item.title) },
                         )
                     }

@@ -33,9 +33,13 @@ ReminderSettingsUiTest проверяет Material 3 календарь (отм�
 Все окна даты/времени переведены на общие Compose Material 3 AppDatePicker /
 AppTimePicker: измерения, питание, фильтры истории и настройки. Часы поддерживают
 циферблат и числовой ввод; длинное содержимое прокручивается на маленьком экране.
-Удалены android.app.DatePickerDialog / TimePickerDialog и зависимость
-material-icons-core; иконки — локальные векторные ресурсы. dependencyInsight
-для androidx.compose.material:material-android не находит зависимость.
+Удалены android.app.DatePickerDialog / TimePickerDialog. Для нижней навигации
+сохранены стандартные векторы material-icons-core: библиотека иконок не содержит
+компонентов интерфейса Material 2. Остальные иконки — локальные векторные ресурсы.
+При первоначальном переходе dependencyInsight для
+androidx.compose.material:material-android не находил зависимость.
+После восстановления иконок: ./gradlew assembleDebug testDebugUnitTest lintDebug
+--warning-mode all — exit 0, 21s.
 Внутренний material-ripple, используемый самим Material 3, остаётся транзитивным.
 
 ./gradlew build --warning-mode all после перехода — exit 0, 18s,
