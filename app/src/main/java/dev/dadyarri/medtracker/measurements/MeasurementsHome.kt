@@ -58,7 +58,7 @@ fun MeasurementsHome(
     var editing by rememberSaveable { mutableStateOf(false) }
     var initial by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var type by rememberSaveable { mutableStateOf<String?>(null) }
-    var period by rememberSaveable { mutableStateOf("all") }
+    var period by rememberSaveable { mutableStateOf("7") }
     var from by rememberSaveable { mutableStateOf(currentDate.toString()) }
     var until by rememberSaveable { mutableStateOf(currentDate.toString()) }
     var context by rememberSaveable { mutableStateOf<String?>(null) }
