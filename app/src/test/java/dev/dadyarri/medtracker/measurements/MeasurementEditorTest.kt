@@ -27,17 +27,17 @@ class MeasurementEditorTest {
             }
         }
         compose.onNodeWithContentDescription("Глюкоза").performTextInput("5,5")
-        compose.onNodeWithText("мг/дл").performClick()
-        compose.onNodeWithContentDescription("Глюкоза").assertTextEquals("99")
+        compose.onNodeWithText("мг/дл").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Глюкоза").assertTextEquals("5,5")
         compose.onNodeWithContentDescription("Натощак").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Внепланово").performScrollTo().performClick()
         restoration.emulateSavedInstanceStateRestore()
-        compose.onNodeWithContentDescription("Глюкоза").assertTextEquals("99")
+        compose.onNodeWithContentDescription("Глюкоза").assertTextEquals("5,5")
         compose.onNodeWithText("Сохранить").performScrollTo().performClick()
         compose.runOnIdle {
             val result = checkNotNull(saved)
-            assertEquals(9900, result.scaled())
-            assertEquals(GlucoseUnit.MG, result.unit)
+            assertEquals(550, result.scaled())
+            assertEquals(GlucoseUnit.MMOL, result.unit)
             assertEquals(FoodContext.FASTING, result.food)
             assertEquals(GlucoseTag.UNPLANNED, result.tag)
         }

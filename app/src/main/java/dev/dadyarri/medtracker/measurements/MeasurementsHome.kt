@@ -39,7 +39,7 @@ fun MeasurementsHome(
     val pressures by pressure.records.collectAsStateWithLifecycle()
     val weights by model.weights.collectAsStateWithLifecycle()
     val glucose by model.glucose.collectAsStateWithLifecycle()
-    val glucoseUnit by model.unit.collectAsStateWithLifecycle()
+    val glucoseUnit = GlucoseUnit.MMOL
     val pressureBusy by pressure.busy.collectAsStateWithLifecycle()
     val measurementBusy by model.busy.collectAsStateWithLifecycle()
     val pressureError by pressure.error.collectAsStateWithLifecycle()
@@ -101,18 +101,6 @@ fun MeasurementsHome(
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             JournalType.entries.forEach { item -> RecordAction(item) { open(null, item) } }
         }
-    }, settingsContent = {
-        Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Единицы глюкозы", style = MaterialTheme.typography.titleLarge)
-            Text("Используются для отображения истории, графиков и новых записей.",
-                style = MaterialTheme.typography.bodyMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GlucoseUnit.entries.forEach { item ->
-                    FilterChip(selected = item == glucoseUnit, onClick = { model.setUnit(item) }, label = { Text(item.label) })
-                }
-            }
-            measurementError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        }
     }) { today ->
         val visible = if (today) HistoryFilter(start = currentDate, end = currentDate).apply(all) else filter.apply(all)
         val loaded = pressures != null && weights != null && glucose != null
@@ -125,7 +113,7 @@ fun MeasurementsHome(
                         period = selection
                         updated.start?.let { from = it.toString() }
                         updated.end?.let { until = it.toString() }
-                    }, glucoseUnit, model::setUnit)
+                    })
                 }
                 item("analytics_toggle") {
                     TextButton(onClick = { analytics = !analytics }) { Text(if (analytics) "Скрыть графики" else "Графики и статистика") }
@@ -211,22 +199,10 @@ private fun MeasurementCard(entry: JournalEntry, unit: GlucoseUnit, onClick: () 
         }
         else -> return
     }
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "${entry.type.label}: $value" },
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(painterResource(entry.type.icon), null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                Icon(painterResource(R.drawable.ic_clock), null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(Instant.ofEpochMilli(entry.at).atZone(ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")),
-                    style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                badges.forEach { (icon, label) -> ContextBadge(icon, label) }
-            }
+    dev.dadyarri.medtracker.ui.MeasurementCardFrame("${entry.type.label}: $value", entry.at, badges, onClick) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(entry.type.label, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(value, style = MaterialTheme.typography.displaySmall)
-                Text(suffix, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(bottom = 6.dp))
-            }
+            Text(value, style = MaterialTheme.typography.displaySmall)
         }
     }
 }

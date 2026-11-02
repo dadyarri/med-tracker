@@ -39,11 +39,16 @@ internal fun MeasurementEditor(
     id: String, initial: MeasurementDraft, editing: Boolean, busy: Boolean, error: String?,
     onSave: (MeasurementDraft) -> Unit, onDelete: () -> Unit, onClose: () -> Unit,
 ) {
-    var value by rememberSaveable(id) { mutableStateOf(initial.value) }
+    var value by rememberSaveable(id) { mutableStateOf(
+        if (initial.type == MeasurementType.GLUCOSE && initial.unit == GlucoseUnit.MG && initial.scaled() != null)
+            decimalText(GlucoseRecord("", initial.scaled()!!, "MG", initial.food.name, null, "", 0, 0, 0)
+                .valueIn(GlucoseUnit.MMOL).setScale(2, java.math.RoundingMode.HALF_UP))
+        else initial.value
+    ) }
     var time by rememberSaveable(id) { mutableStateOf(initial.time) }
     var manual by rememberSaveable(id) { mutableStateOf(initial.context) }
     var automatic by rememberSaveable(id) { mutableStateOf(!editing) }
-    var unit by rememberSaveable(id) { mutableStateOf(initial.unit.name) }
+    val unit = GlucoseUnit.MMOL.name
     var food by rememberSaveable(id) { mutableStateOf(initial.food.name) }
     var tag by rememberSaveable(id) { mutableStateOf(initial.tag?.name) }
     val comment = initial.comment
@@ -76,22 +81,6 @@ internal fun MeasurementEditor(
                     field()
                 }
             })
-        if (initial.type == MeasurementType.GLUCOSE) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GlucoseUnit.entries.forEach { item ->
-                    FilterChip(selected = unit == item.name, onClick = {
-                        if (item.name != unit) {
-                            draft.scaled()?.let { scaled ->
-                                val converted = GlucoseRecord("", scaled, unit, food, tag, "", 0, 0, 0).valueIn(item)
-                                value = decimalText(converted.setScale(2, java.math.RoundingMode.HALF_UP))
-                            }
-                            unit = item.name
-                        }
-                    }, enabled = !busy,
-                        label = { Text(item.label) })
-                }
-            }
-        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = { keyboard?.hide(); picker = "date" }, enabled = !busy,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),

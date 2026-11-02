@@ -32,36 +32,11 @@ internal val PressureContext.iconResource: Int
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PressureHistoryCard(record: PressureRecord, onClick: () -> Unit) {
-    val measured = Instant.ofEpochMilli(record.measuredAt).atZone(ZoneId.systemDefault())
     val context = PressureContext.entries.find { it.name == record.context }
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Давление: ${record.systolic} на ${record.diastolic}" },
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    dev.dadyarri.medtracker.ui.MeasurementCardFrame(
+        "Давление: ${record.systolic} на ${record.diastolic}", record.measuredAt,
+        context?.let { listOf(it.iconResource to it.label) }.orEmpty(), onClick,
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(painterResource(R.drawable.ic_clock), contentDescription = null, Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(measured.format(DateTimeFormatter.ofPattern("HH:mm")),
-                        style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (context != null) {
-                    TooltipBox(
-                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                        tooltip = { PlainTooltip { Text(context.label) } }, state = rememberTooltipState(),
-                    ) {
-                        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.primaryContainer) {
-                            Icon(painterResource(context.iconResource), contentDescription = context.label,
-                                modifier = Modifier.padding(10.dp).size(24.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                    }
-                }
-            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 HistoryValue("Верхнее", record.systolic, Modifier.weight(1f))
                 HistoryValue("Нижнее", record.diastolic, Modifier.weight(1f))
@@ -77,7 +52,6 @@ internal fun PressureHistoryCard(record: PressureRecord, onClick: () -> Unit) {
                     }
                 }
             }
-        }
     }
 }
 

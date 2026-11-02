@@ -51,7 +51,11 @@ class MeasurementViewModel(private val dao: MeasurementDao, private val settings
             } else {
                 val old = if (editing) dao.glucose(id) ?: kotlin.error("Missing record") else null
                 val at = old?.measuredAt?.takeIf { PressureDraft.format(it) == draft.time } ?: draft.instant()!!
-                val record = GlucoseRecord(id, draft.scaled()!!, draft.unit.name, draft.food.name,
+                val unchangedLegacyValue = old != null && old.unit == GlucoseUnit.MG.name &&
+                    draft.unit == GlucoseUnit.MMOL && old.valueIn(GlucoseUnit.MMOL)
+                        .setScale(2, java.math.RoundingMode.HALF_UP).compareTo(java.math.BigDecimal.valueOf(draft.scaled()!!.toLong(), 2)) == 0
+                val record = GlucoseRecord(id, if (unchangedLegacyValue) old.hundredths else draft.scaled()!!,
+                    if (unchangedLegacyValue) old.unit else draft.unit.name, draft.food.name,
                     draft.tag?.name, draft.comment, at, old?.createdAt ?: now, now)
                 if (editing) check(dao.update(record) == 1) else dao.insert(record)
             }

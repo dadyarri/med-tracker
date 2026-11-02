@@ -24,7 +24,7 @@ internal val dateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.
 
 @Composable
 internal fun HistoryControls(filter: HistoryFilter, period: String, today: LocalDate,
-    onChange: (HistoryFilter, String) -> Unit, unit: GlucoseUnit, onUnit: (GlucoseUnit) -> Unit) {
+    onChange: (HistoryFilter, String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         ChoiceRow(listOf("Все" to "", *JournalType.entries.map { it.label to it.name }.toTypedArray()),
             filter.type?.name.orEmpty()) { name ->
@@ -57,10 +57,7 @@ internal fun HistoryControls(filter: HistoryFilter, period: String, today: Local
                 onChange(filter.copy(tag = GlucoseTag.entries.find { it.name == name }), period)
             }
         }
-        if (filter.type == null || filter.type == JournalType.GLUCOSE) {
-            Text("Единицы глюкозы", style = MaterialTheme.typography.labelLarge)
-            ChoiceRow(GlucoseUnit.entries.map { it.label to it.name }, unit.name) { onUnit(GlucoseUnit.valueOf(it)) }
-        }
+
     }
 }
 @Composable
