@@ -103,6 +103,25 @@ class AlarmControllerTest {
         assertEquals(1, shadowOf(manager).scheduledAlarms.size)
     }
 
+    @Test fun reconciliationRetainsAudioFailureUntilTheNextTest() = runBlocking {
+        controller.create(30, true, 15, 120, 5)
+        val initial = db.alarms().current()!!
+        db.alarms().save(initial.copy(nextAt = System.currentTimeMillis() - 1))
+        controller.deliver(initial.token)
+        val ringing = db.alarms().current()!!
+        controller.audioFailure(ringing.token)
+        controller.action(AlarmController.MUTE, ringing.token)
+        val failed = db.alarms().current()!!
+        assertNotNull(failed.diagnostic)
+
+        repeat(3) { controller.reconcile() }
+
+        assertEquals(failed, db.alarms().current())
+        assertEquals(1, shadowOf(manager).scheduledAlarms.size)
+        controller.create(60, false, 15, 120, 5)
+        assertNull(db.alarms().current()!!.diagnostic)
+    }
+
     @Test fun reopeningDatabaseRetainsFutureTestAndJournal() = runBlocking {
         controller.scope.cancel(); db.close()
         val name = "alarm-persistence-test.db"

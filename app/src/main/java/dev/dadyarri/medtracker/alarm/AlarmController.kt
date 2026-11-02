@@ -52,7 +52,11 @@ class AlarmController(private val context: Context, private val db: AlarmDatabas
             }
         } catch (_: SecurityException) { "Система отозвала доступ к точным будильникам." }
           catch (_: IllegalStateException) { "Система не смогла поставить будильник. Повторите согласование." }
-        dao.save(plan.record(error))
+        // Re-registering a future alarm does not prove that audio recovered.
+        // Clear only a scheduling error after scheduling succeeds.
+        val previousDiagnostic = dao.current()?.diagnostic
+        val diagnostic = error ?: previousDiagnostic?.takeUnless { it in SCHEDULING_ERRORS }
+        dao.save(plan.record(diagnostic))
         if (error != null) message.value = error
     }
 
@@ -134,6 +138,11 @@ class AlarmController(private val context: Context, private val db: AlarmDatabas
     }
 
     companion object {
+        private val SCHEDULING_ERRORS = setOf(
+            "Нет доступа к точным будильникам. Разрешите и вернитесь в приложение.",
+            "Система отозвала доступ к точным будильникам.",
+            "Система не смогла поставить будильник. Повторите согласование.",
+        )
         const val TOKEN = "alarm_token"
         const val DELIVER = "dev.dadyarri.medtracker.DELIVER"
         const val MUTE = "dev.dadyarri.medtracker.MUTE"

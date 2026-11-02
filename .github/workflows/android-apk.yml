@@ -49,14 +49,14 @@ jobs:
           for i in {1..100}; do echo y; done > "$answers"
           sdkmanager --sdk_root="$ANDROID_HOME" --licenses < "$answers"
       - name: Install Android SDK
-        run: sdkmanager --sdk_root="$ANDROID_HOME" 'platforms;android-36' 'build-tools;35.0.0' 'platform-tools'
+        run: sdkmanager --sdk_root="$ANDROID_HOME" 'platforms;android-37' 'build-tools;36.0.0' 'platform-tools' 'ndk;29.0.14206865'
       - uses: gradle/actions/setup-gradle@v4
       - name: Build, test and lint
         run: ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
       - name: Verify APK and record public signing certificate
         shell: bash
         run: |
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs \
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs \
             app/build/outputs/apk/debug/app-debug.apk \
             | tee app/build/outputs/apk/debug/signing-certificate.txt
       - name: Upload installable debug APK

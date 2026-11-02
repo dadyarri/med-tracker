@@ -6,8 +6,9 @@
 
 - Kotlin, Jetpack Compose / Material3 с системной темой и динамическими цветами.
 - Room — текущий тест и журнал; DataStore — настройки мастера; Koin — зависимости.
-- Application ID `dev.dadyarri.medtracker`, min/target/compile SDK 36.
-- JDK 21; JVM target 17; Gradle 8.13, AGP 8.13.2, Kotlin 2.2.21.
+- Application ID `dev.dadyarri.medtracker`, min SDK 36, target/compile SDK 37.
+- JDK 21; JVM target 17; Gradle 9.8.2, AGP 9.5.0 со встроенным Kotlin,
+  Compose compiler 2.4.21 и KSP 2.3.13.
 - Нативный `AlarmManager.setAlarmClock`, foreground mediaPlayback и уведомления.
   Нет сервера, сети приложения, аналитики и резервного копирования.
 
@@ -31,8 +32,9 @@
 
 ## Сборка
 
-Установить полный JDK 21, Android SDK с `platforms;android-36`,
-`build-tools;35.0.0`, `platform-tools`; задать `JAVA_HOME` и `ANDROID_HOME`.
+Установить полный JDK 21, Android SDK с `platforms;android-37`,
+`build-tools;36.0.0`, `platform-tools`, `ndk;29.0.14206865`;
+задать `JAVA_HOME` и `ANDROID_HOME`.
 Путь SDK также можно указать в игнорируемом `local.properties`.
 
 ```sh
