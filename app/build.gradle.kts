@@ -9,6 +9,8 @@ plugins {
 extensions.configure<ApplicationExtension> {
     namespace = "dev.dadyarri.medtracker"
     compileSdk = 37
+    // Strip native libraries supplied by dependencies with a reproducible toolchain.
+    ndkVersion = "29.0.14206865"
     defaultConfig {
         applicationId = "dev.dadyarri.medtracker"
         minSdk = 36
