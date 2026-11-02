@@ -1,6 +1,8 @@
 package dev.dadyarri.medtracker.alarm
 
 import androidx.room.*
+import dev.dadyarri.medtracker.pressure.PressureRecord
+import dev.dadyarri.medtracker.pressure.PressureDao
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "test_alarm")
@@ -36,5 +38,9 @@ interface AlarmDao {
     @Insert suspend fun event(event: AlarmEvent)
 }
 
-@Database(entities = [AlarmRecord::class, AlarmEvent::class], version = 1, exportSchema = true)
-abstract class AlarmDatabase : RoomDatabase() { abstract fun alarms(): AlarmDao }
+@Database(entities = [AlarmRecord::class, AlarmEvent::class, PressureRecord::class], version = 2,
+    exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2)])
+abstract class AlarmDatabase : RoomDatabase() {
+    abstract fun alarms(): AlarmDao
+    abstract fun pressure(): PressureDao
+}

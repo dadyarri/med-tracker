@@ -18,6 +18,8 @@ class MedTrackerApplication : Application() {
                 single { Room.databaseBuilder(get(), AlarmDatabase::class.java, "alarm-spike.db").build() }
                 single { AlarmController(get(), get()) }
                 viewModel { AlarmViewModel(get(), get()) }
+                single { get<AlarmDatabase>().pressure() }
+                viewModel { dev.dadyarri.medtracker.pressure.PressureViewModel(get()) }
             })
         }
     }
