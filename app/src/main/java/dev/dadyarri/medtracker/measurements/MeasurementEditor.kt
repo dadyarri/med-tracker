@@ -135,14 +135,23 @@ internal fun MeasurementEditor(
                 }
             }
             if (food == FoodContext.BEFORE.name || food == FoodContext.AFTER.name) {
-                val linked = meals.find { it.id == mealEventId }
+                val matchingMeals = meals.filter { event ->
+                    java.time.Instant.ofEpochMilli(event.startedAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == selected.toLocalDate() &&
+                        (meal == null || event.type == meal)
+                }
+                val linked = matchingMeals.find { it.id == mealEventId }
+                LaunchedEffect(selected.toLocalDate(), meal, meals) {
+                    if (meals.any { it.id == mealEventId } && linked == null) mealEventId = null
+                }
                 Box {
                     TextButton(onClick = { eventMenu = true }, enabled = !busy) {
                         Text(linked?.let { "${MealType.valueOf(it.type).label} · ${PressureDraft.format(it.startedAt)}" } ?: "Связать с едой")
                     }
                     DropdownMenu(expanded = eventMenu, onDismissRequest = { eventMenu = false }) {
                         DropdownMenuItem(text = { Text("Без связи") }, onClick = { mealEventId = null; eventMenu = false })
-                        meals.forEach { event ->
+                        if (matchingMeals.isEmpty()) DropdownMenuItem(
+                            text = { Text("Нет подходящих приёмов пищи") }, enabled = false, onClick = {})
+                        matchingMeals.forEach { event ->
                             DropdownMenuItem(text = { Text("${MealType.valueOf(event.type).label} · ${PressureDraft.format(event.startedAt)}") },
                                 onClick = { mealEventId = event.id; meal = event.type; eventMenu = false })
                         }
