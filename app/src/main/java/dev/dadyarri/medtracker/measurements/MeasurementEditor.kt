@@ -38,6 +38,7 @@ import java.time.LocalDateTime
 internal fun MeasurementEditor(
     id: String, initial: MeasurementDraft, editing: Boolean, busy: Boolean, error: String?,
     onSave: (MeasurementDraft) -> Unit, onDelete: () -> Unit, onClose: () -> Unit,
+    meals: List<dev.dadyarri.medtracker.meals.MealEvent> = emptyList(),
 ) {
     var value by rememberSaveable(id) { mutableStateOf(
         if (initial.type == MeasurementType.GLUCOSE && initial.unit == GlucoseUnit.MG && initial.scaled() != null)
@@ -54,6 +55,8 @@ internal fun MeasurementEditor(
     var meal by rememberSaveable(id) { mutableStateOf(initial.meal?.name) }
     var additional by rememberSaveable(id) { mutableStateOf(false) }
     var mealMenu by remember { mutableStateOf(false) }
+    var mealEventId by rememberSaveable(id) { mutableStateOf(initial.mealEventId) }
+    var eventMenu by remember { mutableStateOf(false) }
     val comment = initial.comment
     var picker by rememberSaveable(id) { mutableStateOf<String?>(null) }
     var attempted by rememberSaveable(id) { mutableStateOf(false) }
@@ -62,7 +65,7 @@ internal fun MeasurementEditor(
     val selected = LocalDateTime.parse(time, PressureDraft.TIME_FORMAT)
     val context = if (automatic) PressureContext.forHour(selected.hour).name else manual
     val draft = MeasurementDraft(initial.type, value, time, context, GlucoseUnit.valueOf(unit),
-        FoodContext.valueOf(food), tag?.let(GlucoseTag::valueOf), comment, meal?.let(MealType::valueOf))
+        FoodContext.valueOf(food), tag?.let(GlucoseTag::valueOf), comment, meal?.let(MealType::valueOf), mealEventId)
     val androidContext = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
     BackHandler(enabled = busy) {}
@@ -129,6 +132,25 @@ internal fun MeasurementEditor(
                             DropdownMenuItem(text = { Text(item.label) }, onClick = { meal = item.name; mealMenu = false })
                         }
                     }
+                }
+            }
+            if (food == FoodContext.BEFORE.name || food == FoodContext.AFTER.name) {
+                val linked = meals.find { it.id == mealEventId }
+                Box {
+                    TextButton(onClick = { eventMenu = true }, enabled = !busy) {
+                        Text(linked?.let { "${MealType.valueOf(it.type).label} · ${PressureDraft.format(it.startedAt)}" } ?: "Связать с едой")
+                    }
+                    DropdownMenu(expanded = eventMenu, onDismissRequest = { eventMenu = false }) {
+                        DropdownMenuItem(text = { Text("Без связи") }, onClick = { mealEventId = null; eventMenu = false })
+                        meals.forEach { event ->
+                            DropdownMenuItem(text = { Text("${MealType.valueOf(event.type).label} · ${PressureDraft.format(event.startedAt)}") },
+                                onClick = { mealEventId = event.id; meal = event.type; eventMenu = false })
+                        }
+                    }
+                }
+                if (linked != null && food == FoodContext.AFTER.name) {
+                    Text("${dev.dadyarri.medtracker.meals.GlucoseCyclePlan.elapsedMinutes(draft.instant()!!, linked)} мин после начала еды",
+                        style = MaterialTheme.typography.labelMedium)
                 }
             }
             TextButton(onClick = { additional = !additional }, enabled = !busy) {

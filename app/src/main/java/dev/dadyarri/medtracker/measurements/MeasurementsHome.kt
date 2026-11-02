@@ -35,10 +35,16 @@ import java.util.UUID
 fun MeasurementsHome(
     pressure: PressureViewModel = koinViewModel(),
     model: MeasurementViewModel = koinViewModel(),
+    mealsModel: dev.dadyarri.medtracker.meals.MealViewModel? = null,
 ) {
     val pressures by pressure.records.collectAsStateWithLifecycle()
     val weights by model.weights.collectAsStateWithLifecycle()
     val glucose by model.glucose.collectAsStateWithLifecycle()
+    val meals by (mealsModel?.meals ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList<dev.dadyarri.medtracker.meals.MealEvent>())).collectAsStateWithLifecycle()
+    val cycle by (mealsModel?.cycle ?: kotlinx.coroutines.flow.MutableStateFlow<dev.dadyarri.medtracker.meals.GlucoseCycle?>(null)).collectAsStateWithLifecycle()
+    val mealBusy by (mealsModel?.busy ?: kotlinx.coroutines.flow.MutableStateFlow(false)).collectAsStateWithLifecycle()
+    var mealMenu by remember { mutableStateOf(false) }
+    var mealEditor by rememberSaveable { mutableStateOf<String?>(null) }
     val glucoseUnit = GlucoseUnit.MMOL
     val pressureBusy by pressure.busy.collectAsStateWithLifecycle()
     val measurementBusy by model.busy.collectAsStateWithLifecycle()
@@ -74,6 +80,7 @@ fun MeasurementsHome(
         editorId = entry?.id ?: UUID.randomUUID().toString()
         val now = PressureDraft.format(System.currentTimeMillis())
         initial = when (entry) {
+            is JournalEntry.Meal -> emptyList()
             is JournalEntry.Pressure -> PressureDraft.from(entry.record).let {
                 listOf(it.systolic, it.diastolic, it.pulse, it.time, it.context.orEmpty(), it.comment)
             }
@@ -83,13 +90,14 @@ fun MeasurementsHome(
             }
             is JournalEntry.Glucose -> entry.record.let {
                 listOf(decimalText(BigDecimal.valueOf(it.hundredths.toLong(), 2)), PressureDraft.format(it.measuredAt),
-                    "", it.unit, it.foodContext, it.tag.orEmpty(), it.comment, it.meal.orEmpty())
+                    "", it.unit, it.foodContext, it.tag.orEmpty(), it.comment, it.meal.orEmpty(), it.mealEventId.orEmpty())
             }
             null -> if (kind == JournalType.PRESSURE) listOf("", "", "", now, "", "")
                 else listOf("", now, "", glucoseUnit.name, FoodContext.NONE.name, "", "")
         }
     }
-    val all = journal(pressures.orEmpty(), weights.orEmpty(), glucose.orEmpty())
+    val all = (journal(pressures.orEmpty(), weights.orEmpty(), glucose.orEmpty()) + meals.map(JournalEntry::Meal))
+        .sortedWith(compareByDescending<JournalEntry> { it.at }.thenByDescending { it.createdAt }.thenBy { it.key })
     val filter = HistoryFilter(
         type?.let(JournalType::valueOf),
         when (period) { "all" -> null; "custom" -> LocalDate.parse(from); else -> currentDate.minusDays(period.toLong() - 1) },
@@ -99,13 +107,32 @@ fun MeasurementsHome(
     EmptyHome(recordActions = {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            JournalType.entries.forEach { item -> RecordAction(item) { open(null, item) } }
+            JournalType.entries.filter { it != JournalType.MEAL || mealsModel != null }.forEach { item ->
+                RecordAction(item) { if (item == JournalType.MEAL) mealMenu = true else open(null, item) }
+            }
+            DropdownMenu(expanded = mealMenu, onDismissRequest = { mealMenu = false }) {
+                MealType.entries.forEach { item ->
+                    DropdownMenuItem(text = { Text(item.label) }, enabled = !mealBusy,
+                        onClick = { mealMenu = false; mealsModel?.start(item) })
+                }
+            }
         }
+    }, settingsContent = {
+        if (mealsModel != null) dev.dadyarri.medtracker.meals.CycleSettings(cycle, mealBusy, mealsModel::toggleCycle, mealsModel::setCycle)
     }) { today ->
         val visible = if (today) HistoryFilter(start = currentDate, end = currentDate).apply(all) else filter.apply(all)
         val loaded = pressures != null && weights != null && glucose != null
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp),
             contentPadding = PaddingValues(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (today && cycle?.active == true) item("glucose_plan") {
+                val tasks = dev.dadyarri.medtracker.meals.GlucoseCyclePlan.tasks(cycle!!, currentDate, meals, ZoneId.systemDefault())
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Контроль глюкозы · день ${cycle!!.day(currentDate)}", style = MaterialTheme.typography.titleMedium)
+                    tasks.forEach { task ->
+                        Text("${if (task.food == "FASTING") "Натощак" else if (task.food == "BEFORE") "До еды" else "После еды"} · ${PressureDraft.format(task.at).substringAfter(' ')}")
+                    }
+                }
+            }
             if (!today) {
                 item("filters") {
                     HistoryControls(filter, period, currentDate, { updated, selection ->
@@ -133,6 +160,11 @@ fun MeasurementsHome(
                     }
                     items(records, key = { it.key }, contentType = { it.type }) { entry ->
                         when (entry) {
+                            is JournalEntry.Meal -> dev.dadyarri.medtracker.ui.MeasurementCardFrame(
+                                "Еда: ${MealType.valueOf(entry.record.type).label}", entry.at, emptyList(), { mealEditor = entry.id }) {
+                                Text(MealType.valueOf(entry.record.type).label, style = MaterialTheme.typography.titleSmall)
+                                Text("Начал есть", style = MaterialTheme.typography.headlineSmall)
+                            }
                             is JournalEntry.Pressure -> PressureHistoryCard(entry.record) { open(entry, entry.type) }
                             else -> MeasurementCard(entry, glucoseUnit) { open(entry, entry.type) }
                         }
@@ -140,6 +172,11 @@ fun MeasurementsHome(
                 }
             }
         }
+    }
+    val selectedMeal = meals.find { it.id == mealEditor }
+    if (selectedMeal != null && mealsModel != null) ModalBottomSheet(onDismissRequest = { if (!mealBusy) mealEditor = null }) {
+        dev.dadyarri.medtracker.meals.MealEditor(selectedMeal, mealBusy,
+            { mealsModel.save(it, true) { mealEditor = null } }, { mealsModel.delete(selectedMeal.id) { mealEditor = null } })
     }
     val id = editorId
     if (id != null) {
@@ -157,16 +194,18 @@ fun MeasurementsHome(
                     initial[0], initial[1], initial[2].ifEmpty { null }, GlucoseUnit.valueOf(initial[3]),
                     FoodContext.valueOf(initial[4]), initial[5].ifEmpty { null }?.let(GlucoseTag::valueOf), initial[6],
                     initial.getOrNull(7)?.ifEmpty { null }?.let(MealType::valueOf),
+                    initial.getOrNull(8)?.ifEmpty { null },
                 )
                 MeasurementEditor(id, draft, editing, busy, measurementError,
                     onSave = { model.save(id, editing, it, close) },
-                    onDelete = { model.delete(id, draft.type, close) }, onClose = close)
+                    onDelete = { model.delete(id, draft.type, close) }, onClose = close, meals = meals)
             }
         }
     }
 }
 
 internal val JournalType.icon: Int get() = when (this) {
+    JournalType.MEAL -> R.drawable.ic_context_fasting
     JournalType.PRESSURE -> R.drawable.ic_blood_pressure
     JournalType.WEIGHT -> R.drawable.ic_weight
     JournalType.GLUCOSE -> R.drawable.ic_glucose

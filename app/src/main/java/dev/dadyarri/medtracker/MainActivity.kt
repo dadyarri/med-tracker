@@ -116,7 +116,7 @@ private fun MedTrackerApp(model: AlarmViewModel = koinViewModel()) {
             },
             onFinish = model::finishWizard,
         )
-        else -> dev.dadyarri.medtracker.measurements.MeasurementsHome()
+        else -> dev.dadyarri.medtracker.measurements.MeasurementsHome(mealsModel = koinViewModel())
     }
 }
 

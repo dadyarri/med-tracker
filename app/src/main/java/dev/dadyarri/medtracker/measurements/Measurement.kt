@@ -28,6 +28,7 @@ data class GlucoseRecord(
     val foodContext: String, val tag: String?, val comment: String,
     val measuredAt: Long, val createdAt: Long, val updatedAt: Long,
     val meal: String? = null,
+    val mealEventId: String? = null,
 ) {
     fun valueIn(target: GlucoseUnit): BigDecimal {
         val value = BigDecimal.valueOf(hundredths.toLong(), 2)
@@ -63,6 +64,7 @@ data class MeasurementDraft(
     val context: String? = null, val unit: GlucoseUnit = GlucoseUnit.MMOL,
     val food: FoodContext = FoodContext.NONE, val tag: GlucoseTag? = null, val comment: String = "",
     val meal: MealType? = null,
+    val mealEventId: String? = null,
 ) {
     fun scaled(): Int? = scaledValue(value, if (type == MeasurementType.WEIGHT) 1 else 2)
     fun instant() = PressureDraft(time = time).instant()

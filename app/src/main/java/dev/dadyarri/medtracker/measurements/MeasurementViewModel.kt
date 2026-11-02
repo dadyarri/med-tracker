@@ -56,7 +56,7 @@ class MeasurementViewModel(private val dao: MeasurementDao, private val settings
                         .setScale(2, java.math.RoundingMode.HALF_UP).compareTo(java.math.BigDecimal.valueOf(draft.scaled()!!.toLong(), 2)) == 0
                 val record = GlucoseRecord(id, if (unchangedLegacyValue) old.hundredths else draft.scaled()!!,
                     if (unchangedLegacyValue) old.unit else draft.unit.name, draft.food.name,
-                    draft.tag?.name, draft.comment, at, old?.createdAt ?: now, now, draft.meal?.name)
+                    draft.tag?.name, draft.comment, at, old?.createdAt ?: now, now, draft.meal?.name, draft.mealEventId)
                 if (editing) check(dao.update(record) == 1) else dao.insert(record)
             }
         }
