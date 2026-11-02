@@ -114,7 +114,10 @@ private fun AlarmScreen(model: AlarmViewModel = koinViewModel()) {
                     open(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, packageUri = true)
                 }
                 PermissionCard("4. Исключение оптимизации батареи", permissions.battery, "Предлагается сразу; не обходит все ограничения One UI.") {
-                    open(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageUri = true)
+                    // Sideloaded personal app: the direct exemption request is required by specification §5.2.
+                    @Suppress("BatteryLife")
+                    val action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                    open(action, packageUri = true)
                 }
                 Card { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("5. Samsung: никогда не спящие приложения", style = MaterialTheme.typography.titleMedium)

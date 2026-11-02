@@ -11,16 +11,18 @@ class AlarmPolicyTest {
         val waiting = plan()
         assertEquals(now + 30_000, waiting.nextAt)
         assertEquals(now + 30_000 + 120 * 60_000, waiting.endAt)
-        val ringing = AlarmPolicy.deliver(waiting, "first", waiting.nextAt!!, "second")!!
+        val nextAt = requireNotNull(waiting.nextAt)
+        val ringing = AlarmPolicy.deliver(waiting, "first", nextAt, "second")!!
         assertEquals(AlarmStatus.RINGING, ringing.status)
-        assertEquals(waiting.nextAt!! + 15 * 60_000, ringing.nextAt)
+        assertEquals(nextAt + 15 * 60_000, ringing.nextAt)
     }
     @Test fun duplicateAndStaleDeliveryAreIgnored() {
         val waiting = plan()
-        val ringing = AlarmPolicy.deliver(waiting, "first", waiting.nextAt!!, "second")!!
-        assertNull(AlarmPolicy.deliver(ringing, "first", waiting.nextAt!!, "third"))
-        assertNull(AlarmPolicy.deliver(waiting, "old", waiting.nextAt!!, "third"))
-        assertNull(AlarmPolicy.deliver(waiting, "first", waiting.nextAt!! - 1, "third"))
+        val nextAt = requireNotNull(waiting.nextAt)
+        val ringing = AlarmPolicy.deliver(waiting, "first", nextAt, "second")!!
+        assertNull(AlarmPolicy.deliver(ringing, "first", nextAt, "third"))
+        assertNull(AlarmPolicy.deliver(waiting, "old", nextAt, "third"))
+        assertNull(AlarmPolicy.deliver(waiting, "first", nextAt - 1, "third"))
     }
     @Test fun replacementRejectsOldPendingIntent() {
         val replacement = AlarmPolicy.create(now, 60, true, "replacement")
@@ -70,9 +72,10 @@ class AlarmPolicyTest {
     }
     @Test fun quietAndSoundShareTimingPolicy() {
         val quiet = plan(false)
-        val delivered = AlarmPolicy.deliver(quiet, "first", quiet.nextAt!!, "next")!!
+        val nextAt = requireNotNull(quiet.nextAt)
+        val delivered = AlarmPolicy.deliver(quiet, "first", nextAt, "next")!!
         assertFalse(delivered.sound)
-        assertEquals(AlarmPolicy.deliver(plan(), "first", quiet.nextAt!!, "next")!!.nextAt, delivered.nextAt)
+        assertEquals(AlarmPolicy.deliver(plan(), "first", nextAt, "next")!!.nextAt, delivered.nextAt)
     }
     @Test fun rebootMutesPreviouslyActiveSoundButRetainsFutureRepeat() {
         val ringing = AlarmPolicy.deliver(plan(), "first", now + 30_000, "next")!!
