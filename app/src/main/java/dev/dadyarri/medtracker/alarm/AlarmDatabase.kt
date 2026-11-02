@@ -41,8 +41,8 @@ interface AlarmDao {
     @Insert suspend fun event(event: AlarmEvent)
 }
 
-@Database(entities = [AlarmRecord::class, AlarmEvent::class, PressureRecord::class, WeightRecord::class, GlucoseRecord::class], version = 3,
-    exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)])
+@Database(entities = [AlarmRecord::class, AlarmEvent::class, PressureRecord::class, WeightRecord::class, GlucoseRecord::class], version = 4,
+    exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)])
 abstract class AlarmDatabase : RoomDatabase() {
     abstract fun alarms(): AlarmDao
     abstract fun pressure(): PressureDao

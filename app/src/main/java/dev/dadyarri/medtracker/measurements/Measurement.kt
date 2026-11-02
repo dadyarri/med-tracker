@@ -12,6 +12,7 @@ enum class GlucoseUnit(val label: String) { MMOL("ммоль/л"), MG("мг/дл
 enum class FoodContext(val label: String) {
     FASTING("Натощак"), BEFORE("До еды"), AFTER("После еды"), NONE("Без привязки")
 }
+enum class MealType(val label: String) { BREAKFAST("Завтрак"), LUNCH("Обед"), DINNER("Ужин"), SNACK("Перекус") }
 enum class GlucoseTag(val label: String) { BEDTIME("Перед сном"), UNPLANNED("Внепланово") }
 
 // Weight is stored in tenths of kg. Glucose keeps hundredths of the original unit;
@@ -26,6 +27,7 @@ data class GlucoseRecord(
     @PrimaryKey val id: String, val hundredths: Int, val unit: String,
     val foodContext: String, val tag: String?, val comment: String,
     val measuredAt: Long, val createdAt: Long, val updatedAt: Long,
+    val meal: String? = null,
 ) {
     fun valueIn(target: GlucoseUnit): BigDecimal {
         val value = BigDecimal.valueOf(hundredths.toLong(), 2)
@@ -60,6 +62,7 @@ data class MeasurementDraft(
     val type: MeasurementType, val value: String = "", val time: String,
     val context: String? = null, val unit: GlucoseUnit = GlucoseUnit.MMOL,
     val food: FoodContext = FoodContext.NONE, val tag: GlucoseTag? = null, val comment: String = "",
+    val meal: MealType? = null,
 ) {
     fun scaled(): Int? = scaledValue(value, if (type == MeasurementType.WEIGHT) 1 else 2)
     fun instant() = PressureDraft(time = time).instant()

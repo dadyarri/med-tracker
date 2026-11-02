@@ -83,7 +83,7 @@ fun MeasurementsHome(
             }
             is JournalEntry.Glucose -> entry.record.let {
                 listOf(decimalText(BigDecimal.valueOf(it.hundredths.toLong(), 2)), PressureDraft.format(it.measuredAt),
-                    "", it.unit, it.foodContext, it.tag.orEmpty(), it.comment)
+                    "", it.unit, it.foodContext, it.tag.orEmpty(), it.comment, it.meal.orEmpty())
             }
             null -> if (kind == JournalType.PRESSURE) listOf("", "", "", now, "", "")
                 else listOf("", now, "", glucoseUnit.name, FoodContext.NONE.name, "", "")
@@ -156,6 +156,7 @@ fun MeasurementsHome(
                     if (editorType == JournalType.WEIGHT.name) MeasurementType.WEIGHT else MeasurementType.GLUCOSE,
                     initial[0], initial[1], initial[2].ifEmpty { null }, GlucoseUnit.valueOf(initial[3]),
                     FoodContext.valueOf(initial[4]), initial[5].ifEmpty { null }?.let(GlucoseTag::valueOf), initial[6],
+                    initial.getOrNull(7)?.ifEmpty { null }?.let(MealType::valueOf),
                 )
                 MeasurementEditor(id, draft, editing, busy, measurementError,
                     onSave = { model.save(id, editing, it, close) },
@@ -195,7 +196,8 @@ private fun MeasurementCard(entry: JournalEntry, unit: GlucoseUnit, onClick: () 
             value = decimalText(entry.record.valueIn(unit).setScale(2, java.math.RoundingMode.HALF_UP)); suffix = unit.label
             val food = FoodContext.valueOf(entry.record.foodContext)
             badges = listOfNotNull(food.icon to food.label,
-                entry.record.tag?.let { GlucoseTag.valueOf(it) }?.let { it.icon to it.label })
+                entry.record.tag?.let { GlucoseTag.valueOf(it) }?.let { it.icon to it.label },
+                entry.record.meal?.let(MealType::valueOf)?.let { it.icon to it.label })
         }
         else -> return
     }

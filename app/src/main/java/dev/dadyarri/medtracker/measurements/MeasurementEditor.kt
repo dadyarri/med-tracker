@@ -51,6 +51,7 @@ internal fun MeasurementEditor(
     val unit = GlucoseUnit.MMOL.name
     var food by rememberSaveable(id) { mutableStateOf(initial.food.name) }
     var tag by rememberSaveable(id) { mutableStateOf(initial.tag?.name) }
+    var meal by rememberSaveable(id) { mutableStateOf(initial.meal?.name) }
     val comment = initial.comment
     var picker by rememberSaveable(id) { mutableStateOf<String?>(null) }
     var attempted by rememberSaveable(id) { mutableStateOf(false) }
@@ -59,7 +60,7 @@ internal fun MeasurementEditor(
     val selected = LocalDateTime.parse(time, PressureDraft.TIME_FORMAT)
     val context = if (automatic) PressureContext.forHour(selected.hour).name else manual
     val draft = MeasurementDraft(initial.type, value, time, context, GlucoseUnit.valueOf(unit),
-        FoodContext.valueOf(food), tag?.let(GlucoseTag::valueOf), comment)
+        FoodContext.valueOf(food), tag?.let(GlucoseTag::valueOf), comment, meal?.let(MealType::valueOf))
     val androidContext = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
     BackHandler(enabled = busy) {}
@@ -112,6 +113,14 @@ internal fun MeasurementEditor(
                 horizontalArrangement = Arrangement.SpaceBetween) {
                 FoodContext.entries.forEach { item ->
                     ContextChoice(item.icon, item.label, food == item.name, !busy) { food = item.name }
+                }
+            }
+            Row(Modifier.fillMaxWidth().semantics { contentDescription = "Приём пищи" },
+                horizontalArrangement = Arrangement.SpaceBetween) {
+                MealType.entries.forEach { item ->
+                    ContextChoice(item.icon, item.label, meal == item.name, !busy) {
+                        meal = if (meal == item.name) null else item.name
+                    }
                 }
             }
             Row(Modifier.fillMaxWidth().semantics { contentDescription = "Характеристика измерения" },

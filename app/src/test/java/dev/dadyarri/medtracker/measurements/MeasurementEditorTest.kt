@@ -31,6 +31,7 @@ class MeasurementEditorTest {
         compose.onNodeWithContentDescription("Глюкоза").assertTextEquals("5,5")
         compose.onNodeWithContentDescription("Натощак").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Внепланово").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Завтрак").performScrollTo().performClick()
         restoration.emulateSavedInstanceStateRestore()
         compose.onNodeWithContentDescription("Глюкоза").assertTextEquals("5,5")
         compose.onNodeWithText("Сохранить").performScrollTo().performClick()
@@ -40,6 +41,7 @@ class MeasurementEditorTest {
             assertEquals(GlucoseUnit.MMOL, result.unit)
             assertEquals(FoodContext.FASTING, result.food)
             assertEquals(GlucoseTag.UNPLANNED, result.tag)
+            assertEquals(MealType.BREAKFAST, result.meal)
         }
     }
     @Test fun weightRejectsExcessPrecisionAndWarnsWithoutBlockingUnusualValue() {

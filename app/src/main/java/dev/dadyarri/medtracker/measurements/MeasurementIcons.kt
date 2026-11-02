@@ -2,6 +2,12 @@ package dev.dadyarri.medtracker.measurements
 
 import dev.dadyarri.medtracker.R
 
+internal val MealType.icon: Int get() = when (this) {
+    MealType.BREAKFAST -> R.drawable.ic_context_morning
+    MealType.LUNCH -> R.drawable.ic_context_day
+    MealType.DINNER -> R.drawable.ic_context_evening
+    MealType.SNACK -> R.drawable.ic_context_fasting
+}
 internal val FoodContext.icon: Int get() = when (this) {
     FoodContext.FASTING -> R.drawable.ic_context_fasting
     FoodContext.BEFORE -> R.drawable.ic_context_before_meal
