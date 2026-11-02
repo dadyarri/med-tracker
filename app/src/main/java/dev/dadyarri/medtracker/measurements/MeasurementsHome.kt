@@ -20,6 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.dadyarri.medtracker.EmptyHome
 import dev.dadyarri.medtracker.R
 import dev.dadyarri.medtracker.pressure.*
+import dev.dadyarri.medtracker.ui.ContextBadge
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 import java.math.BigDecimal
@@ -196,19 +197,17 @@ private fun RecordAction(type: JournalType, onClick: () -> Unit) {
 private fun MeasurementCard(entry: JournalEntry, unit: GlucoseUnit, onClick: () -> Unit) {
     val value: String
     val suffix: String
-    val context: String?
-    val comment: String
+    val badges: List<Pair<Int, String>>
     when (entry) {
         is JournalEntry.Weight -> {
             value = decimalText(BigDecimal.valueOf(entry.record.tenthsKg.toLong(), 1)); suffix = "кг"
-            context = PressureContext.entries.find { it.name == entry.record.context }?.label
-            comment = entry.record.comment
+            badges = PressureContext.entries.find { it.name == entry.record.context }?.let { listOf(it.iconResource to it.label) }.orEmpty()
         }
         is JournalEntry.Glucose -> {
             value = decimalText(entry.record.valueIn(unit).setScale(2, java.math.RoundingMode.HALF_UP)); suffix = unit.label
-            context = listOfNotNull(FoodContext.valueOf(entry.record.foodContext).label,
-                entry.record.tag?.let { GlucoseTag.valueOf(it).label }).joinToString(" · ")
-            comment = entry.record.comment
+            val food = FoodContext.valueOf(entry.record.foodContext)
+            badges = listOfNotNull(food.icon to food.label,
+                entry.record.tag?.let { GlucoseTag.valueOf(it) }?.let { it.icon to it.label })
         }
         else -> return
     }
@@ -218,16 +217,16 @@ private fun MeasurementCard(entry: JournalEntry, unit: GlucoseUnit, onClick: () 
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(painterResource(entry.type.icon), null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                Text(entry.type.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Icon(painterResource(R.drawable.ic_clock), null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(Instant.ofEpochMilli(entry.at).atZone(ZoneId.systemDefault()).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")),
-                    style = MaterialTheme.typography.labelLarge)
+                    style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                badges.forEach { (icon, label) -> ContextBadge(icon, label) }
             }
+            Text(entry.type.label, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(value, style = MaterialTheme.typography.displaySmall)
                 Text(suffix, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(bottom = 6.dp))
             }
-            context?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            if (comment.isNotBlank()) Text(comment, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

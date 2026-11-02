@@ -34,7 +34,7 @@ class MeasurementFlowTest {
             compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Вес: 72,3").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText("Глюкоза").performClick()
             compose.onNodeWithContentDescription("Глюкоза").performTextInput("5,5")
-            compose.onNodeWithText("Натощак").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Натощак").performScrollTo().performClick()
             compose.onNodeWithText("Сохранить").performScrollTo().performClick()
             compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Глюкоза: 5,5").fetchSemanticsNodes().isNotEmpty() }
             compose.onNode(hasText("История") and hasClickAction()).performClick()

@@ -6,7 +6,6 @@ import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -16,6 +15,9 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import dev.dadyarri.medtracker.ui.ContextChoice
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -44,7 +46,7 @@ internal fun MeasurementEditor(
     var unit by rememberSaveable(id) { mutableStateOf(initial.unit.name) }
     var food by rememberSaveable(id) { mutableStateOf(initial.food.name) }
     var tag by rememberSaveable(id) { mutableStateOf(initial.tag?.name) }
-    var comment by rememberSaveable(id) { mutableStateOf(initial.comment) }
+    val comment = initial.comment
     var picker by rememberSaveable(id) { mutableStateOf<String?>(null) }
     var attempted by rememberSaveable(id) { mutableStateOf(false) }
     var unusual by rememberSaveable(id) { mutableStateOf(false) }
@@ -60,13 +62,20 @@ internal fun MeasurementEditor(
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("${if (editing) "Изменить" else "Записать"} ${if (initial.type == MeasurementType.WEIGHT) "вес" else "глюкозу"}",
             style = MaterialTheme.typography.headlineSmall)
-        Text(if (initial.type == MeasurementType.WEIGHT) "Вес, кг" else "Глюкоза, ${draft.unit.label}",
-            style = MaterialTheme.typography.titleSmall)
+        Text(initial.type.label, style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.clearAndSetSemantics {})
         BasicTextField(value = value, onValueChange = { value = it }, enabled = !busy, singleLine = true,
             textStyle = MaterialTheme.typography.displaySmall.copy(color = MaterialTheme.colorScheme.onSurface),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = initial.type.label })
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = initial.type.label },
+            decorationBox = { field ->
+                Box(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(vertical = 4.dp), contentAlignment = Alignment.CenterStart) {
+                    if (value.isEmpty()) Text("—", style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.clearAndSetSemantics {})
+                    field()
+                }
+            })
         if (initial.type == MeasurementType.GLUCOSE) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 GlucoseUnit.entries.forEach { item ->
@@ -103,35 +112,28 @@ internal fun MeasurementEditor(
             Text("Контекст", style = MaterialTheme.typography.titleSmall)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 PressureContext.entries.forEach { item ->
-                    TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                        tooltip = { PlainTooltip { Text(item.label) } }, state = rememberTooltipState()) {
-                        FilledIconToggleButton(checked = context == item.name, enabled = !busy,
-                            onCheckedChange = {
-                                manual = if (!automatic && context == item.name) null else item.name
-                                automatic = false
-                            }, modifier = Modifier.size(56.dp)) {
-                            Icon(painterResource(item.iconResource), item.label, Modifier.size(28.dp))
-                        }
+                    ContextChoice(item.iconResource, item.label, context == item.name, !busy) {
+                        manual = if (!automatic && context == item.name) null else item.name
+                        automatic = false
                     }
                 }
             }
         } else {
-            Text("Отношение к еде", style = MaterialTheme.typography.titleSmall)
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth().semantics { contentDescription = "Отношение к еде" },
+                horizontalArrangement = Arrangement.SpaceBetween) {
                 FoodContext.entries.forEach { item ->
-                    FilterChip(selected = food == item.name, onClick = { food = item.name }, enabled = !busy,
-                        label = { Text(item.label) })
+                    ContextChoice(item.icon, item.label, food == item.name, !busy) { food = item.name }
                 }
             }
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth().semantics { contentDescription = "Характеристика измерения" },
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GlucoseTag.entries.forEach { item ->
-                    FilterChip(selected = tag == item.name, onClick = { tag = if (tag == item.name) null else item.name },
-                        enabled = !busy, label = { Text(item.label) })
+                    ContextChoice(item.icon, item.label, tag == item.name, !busy) {
+                        tag = if (tag == item.name) null else item.name
+                    }
                 }
             }
         }
-        OutlinedTextField(value = comment, onValueChange = { comment = it }, enabled = !busy,
-            label = { Text("Комментарий") }, modifier = Modifier.fillMaxWidth(), maxLines = 3)
         if (attempted) draft.error()?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(onClick = {

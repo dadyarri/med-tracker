@@ -77,8 +77,6 @@ internal fun PressureHistoryCard(record: PressureRecord, onClick: () -> Unit) {
                     }
                 }
             }
-            if (record.comment.isNotBlank()) Text(record.comment, style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
