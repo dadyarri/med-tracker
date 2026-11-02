@@ -146,7 +146,6 @@ internal fun PressureEditor(
             Text("Время: " + localTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")))
         }
         Text("Контекст · необязательно", style = MaterialTheme.typography.titleSmall)
-        FilterChip(automaticContext, { automaticContext = true }, label = { Text("Автоматически по времени") }, enabled = !busy)
         Column {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PressureContext.entries.take(2).forEach { item ->
@@ -183,11 +182,19 @@ internal fun PressureEditor(
             val selected = localTime
             val dialog = if (picker == "date") {
                 DatePickerDialog(androidContext, { _, year, month, day ->
-                    time = LocalDate.of(year, month + 1, day).atTime(selected.toLocalTime()).format(PressureDraft.TIME_FORMAT)
+                    val updated = LocalDate.of(year, month + 1, day).atTime(selected.toLocalTime()).format(PressureDraft.TIME_FORMAT)
+                    if (updated != time) {
+                        time = updated
+                        automaticContext = true
+                    }
                 }, selected.year, selected.monthValue - 1, selected.dayOfMonth)
             } else {
                 TimePickerDialog(androidContext, { _, hour, minute ->
-                    time = selected.withHour(hour).withMinute(minute).format(PressureDraft.TIME_FORMAT)
+                    val updated = selected.withHour(hour).withMinute(minute).format(PressureDraft.TIME_FORMAT)
+                    if (updated != time) {
+                        time = updated
+                        automaticContext = true
+                    }
                 }, selected.hour, selected.minute, DateFormat.is24HourFormat(androidContext))
             }
             dialog.setOnDismissListener { picker = null }
