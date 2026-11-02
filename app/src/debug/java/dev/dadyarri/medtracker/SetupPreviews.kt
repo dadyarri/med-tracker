@@ -9,7 +9,7 @@ import androidx.compose.ui.tooling.preview.Preview
 @Composable
 private fun PermissionWizardPreview() {
     MaterialTheme {
-        PermissionWizard(List(5) { false }, false, null, {}, {}, {})
+        PermissionWizard(List(4) { false }, false, null, {}, {})
     }
 }
 

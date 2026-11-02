@@ -23,20 +23,22 @@ class SetupNavigationTest {
         restoration.setContent {
             MaterialTheme {
                 PermissionWizard(
-                    granted = List(5) { false }, busy = false, message = null,
-                    onRequest = {}, onSamsungConfirmed = {}, onFinish = { finished++ },
+                    granted = List(4) { false }, busy = false, message = null,
+                    onRequest = {}, onFinish = { finished++ },
                 )
             }
         }
-        compose.onNodeWithText("Шаг 1 из 5").assertIsDisplayed()
+        compose.onNodeWithText("Шаг 1 из 4").assertIsDisplayed()
         compose.onNodeWithText("Пропустить").performClick()
         restoration.emulateSavedInstanceStateRestore()
-        compose.onNodeWithText("Шаг 2 из 5").assertIsDisplayed()
+        compose.onNodeWithText("Шаг 2 из 4").assertIsDisplayed()
         compose.onNodeWithText("Назад").performClick()
-        compose.onNodeWithText("Шаг 1 из 5").assertIsDisplayed()
-        repeat(4) { compose.onNodeWithText("Пропустить").performClick() }
-        compose.onNodeWithText("Шаг 5 из 5").assertIsDisplayed()
-        compose.onNodeWithText("Открыть MedTracker").performClick()
+        compose.onNodeWithText("Шаг 1 из 4").assertIsDisplayed()
+        repeat(3) { compose.onNodeWithText("Пропустить").performClick() }
+        compose.onNodeWithText("Шаг 4 из 4").assertIsDisplayed()
+        compose.onNodeWithText("Работа в фоне").assertIsDisplayed()
+        compose.onNodeWithText("Я добавил MedTracker в список").assertDoesNotExist()
+        compose.onNodeWithText("Завершить настройку").performClick()
         compose.runOnIdle { assertEquals(1, finished) }
     }
 

@@ -54,11 +54,10 @@ private enum class Destination(val title: String, val icon: ImageVector) {
 private data class PermissionStep(val title: String, val description: String, val icon: ImageVector)
 
 private val permissionSteps = listOf(
-    PermissionStep("Уведомления", "Показывают напоминания и позволяют быстро отложить или отключить сигнал.", Icons.Default.Notifications),
-    PermissionStep("Точное время", "Разрешите будильники, чтобы напоминания приходили в назначенное время.", Icons.Default.DateRange),
-    PermissionStep("Экран напоминания", "Позволяет показывать звуковое напоминание поверх экрана блокировки.", Icons.Default.Lock),
+    PermissionStep("Уведомления", "Используются для отображения напоминаний и позволяют быстро отложить или пропустить их.", Icons.Default.Notifications),
+    PermissionStep("Будильники", "Используются для того, чтобы напоминания приходили в точное время.", Icons.Default.DateRange),
+    PermissionStep("Полноэкранные уведомления", "Позволяет показывать уведомление на полный экран поверх экрана блокировки.", Icons.Default.Lock),
     PermissionStep("Работа в фоне", "Исключение из оптимизации батареи помогает напоминаниям работать, когда приложение закрыто.", Icons.Default.Info),
-    PermissionStep("Настройки Samsung", "Добавьте MedTracker в список никогда не спящих приложений, чтобы One UI не ограничивала напоминания.", Icons.Default.CheckCircle),
 )
 
 @Composable
@@ -98,7 +97,7 @@ private fun MedTrackerApp(model: AlarmViewModel = koinViewModel()) {
             Box(contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         }
         !setup.first -> PermissionWizard(
-            granted = listOf(permissions.notifications, permissions.exact, permissions.fullscreen, permissions.battery, setup.second),
+            granted = listOf(permissions.notifications, permissions.exact, permissions.fullscreen, permissions.battery),
             busy = busy,
             message = message,
             onRequest = { step ->
@@ -113,10 +112,8 @@ private fun MedTrackerApp(model: AlarmViewModel = koinViewModel()) {
                         val action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
                         open(action)
                     }
-                    4 -> open(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS, false)
                 }
             },
-            onSamsungConfirmed = model::samsungConfirmed,
             onFinish = model::finishWizard,
         )
         else -> EmptyHome()
@@ -129,12 +126,13 @@ internal fun PermissionWizard(
     busy: Boolean,
     message: String?,
     onRequest: (Int) -> Unit,
-    onSamsungConfirmed: (Boolean) -> Unit,
     onFinish: () -> Unit,
 ) {
-    var step by rememberSaveable { mutableIntStateOf(0) }
+    var savedStep by rememberSaveable { mutableIntStateOf(0) }
+    // An existing saved wizard may still point to the removed fifth step.
+    val step = savedStep.coerceIn(permissionSteps.indices)
     val item = permissionSteps[step]
-    BackHandler(enabled = step > 0) { step-- }
+    BackHandler(enabled = step > 0) { savedStep = step - 1 }
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.safeDrawingPadding().padding(horizontal = 24.dp, vertical = 16.dp)) {
             Text("Настройка напоминаний", style = MaterialTheme.typography.titleLarge)
@@ -154,21 +152,11 @@ internal fun PermissionWizard(
                     Text(item.title, style = MaterialTheme.typography.headlineLarge)
                     Text(item.description, style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        if (granted[step]) {
-                            if (step == 4) "Вы подтвердили настройку вручную" else "Разрешение предоставлено"
-                        } else if (step == 4) "Нужна ручная проверка" else "Разрешение не предоставлено",
+                        if (granted[step]) "Разрешение предоставлено" else "Разрешение не предоставлено",
                         color = if (granted[step]) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    if (step == 4) {
-                        Text("Настройки → Обслуживание устройства → Батарея → Ограничения фонового использования → Никогда не спящие приложения.")
-                        Text("Названия пунктов могут отличаться. Android не позволяет приложению проверить этот список.")
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = granted[4], onCheckedChange = onSamsungConfirmed, enabled = !busy)
-                            Text("Я добавил MedTracker в список", Modifier.weight(1f))
-                        }
-                    }
                     OutlinedButton(onClick = { onRequest(step) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (granted[step] || step == 4) "Открыть настройки" else "Предоставить доступ")
+                        Text(if (granted[step]) "Открыть настройки" else "Предоставить доступ")
                     }
                     Text("Можно продолжить без разрешения и настроить его позже в системных настройках приложения.",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -176,13 +164,13 @@ internal fun PermissionWizard(
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (step > 0) OutlinedButton(onClick = { step-- }, enabled = !busy) { Text("Назад") }
+                if (step > 0) OutlinedButton(onClick = { savedStep = step - 1 }, enabled = !busy) { Text("Назад") }
                 Button(
-                    onClick = { if (step == permissionSteps.lastIndex) onFinish() else step++ },
+                    onClick = { if (step == permissionSteps.lastIndex) onFinish() else savedStep = step + 1 },
                     enabled = !busy,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(if (step == permissionSteps.lastIndex) "Открыть MedTracker" else if (granted[step]) "Продолжить" else "Пропустить")
+                    Text(if (step == permissionSteps.lastIndex) "Завершить настройку" else if (granted[step]) "Продолжить" else "Пропустить")
                 }
             }
         }
