@@ -52,6 +52,8 @@ internal fun MeasurementEditor(
     var food by rememberSaveable(id) { mutableStateOf(initial.food.name) }
     var tag by rememberSaveable(id) { mutableStateOf(initial.tag?.name) }
     var meal by rememberSaveable(id) { mutableStateOf(initial.meal?.name) }
+    var additional by rememberSaveable(id) { mutableStateOf(false) }
+    var mealMenu by remember { mutableStateOf(false) }
     val comment = initial.comment
     var picker by rememberSaveable(id) { mutableStateOf<String?>(null) }
     var attempted by rememberSaveable(id) { mutableStateOf(false) }
@@ -115,19 +117,29 @@ internal fun MeasurementEditor(
                     ContextChoice(item.icon, item.label, food == item.name, !busy) { food = item.name }
                 }
             }
-            Row(Modifier.fillMaxWidth().semantics { contentDescription = "Приём пищи" },
-                horizontalArrangement = Arrangement.SpaceBetween) {
-                MealType.entries.forEach { item ->
-                    ContextChoice(item.icon, item.label, meal == item.name, !busy) {
-                        meal = if (meal == item.name) null else item.name
+            if (food == FoodContext.BEFORE.name || food == FoodContext.AFTER.name) {
+                Box {
+                    OutlinedButton(onClick = { mealMenu = true }, enabled = !busy) {
+                        Text(meal?.let(MealType::valueOf)?.label ?: "Приём пищи")
+                        Text(" ▾")
+                    }
+                    DropdownMenu(expanded = mealMenu, onDismissRequest = { mealMenu = false }) {
+                        DropdownMenuItem(text = { Text("Не указан") }, onClick = { meal = null; mealMenu = false })
+                        MealType.entries.forEach { item ->
+                            DropdownMenuItem(text = { Text(item.label) }, onClick = { meal = item.name; mealMenu = false })
+                        }
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth().semantics { contentDescription = "Характеристика измерения" },
-                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                GlucoseTag.entries.forEach { item ->
-                    ContextChoice(item.icon, item.label, tag == item.name, !busy) {
-                        tag = if (tag == item.name) null else item.name
+            TextButton(onClick = { additional = !additional }, enabled = !busy) {
+                Text(if (additional) "Свернуть" else "Дополнительно")
+            }
+            if (additional) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GlucoseTag.entries.forEach { item ->
+                        FilterChip(selected = tag == item.name, enabled = !busy,
+                            onClick = { tag = if (tag == item.name) null else item.name },
+                            label = { Text(item.label) })
                     }
                 }
             }

@@ -185,25 +185,37 @@ private fun RecordAction(type: JournalType, onClick: () -> Unit) {
 @Composable
 private fun MeasurementCard(entry: JournalEntry, unit: GlucoseUnit, onClick: () -> Unit) {
     val value: String
-    val suffix: String
+    var contextLabel: String? = null
     val badges: List<Pair<Int, String>>
     when (entry) {
         is JournalEntry.Weight -> {
-            value = decimalText(BigDecimal.valueOf(entry.record.tenthsKg.toLong(), 1)); suffix = "кг"
+            value = decimalText(BigDecimal.valueOf(entry.record.tenthsKg.toLong(), 1))
             badges = PressureContext.entries.find { it.name == entry.record.context }?.let { listOf(it.iconResource to it.label) }.orEmpty()
         }
         is JournalEntry.Glucose -> {
-            value = decimalText(entry.record.valueIn(unit).setScale(2, java.math.RoundingMode.HALF_UP)); suffix = unit.label
+            value = decimalText(entry.record.valueIn(unit).setScale(2, java.math.RoundingMode.HALF_UP))
             val food = FoodContext.valueOf(entry.record.foodContext)
-            badges = listOfNotNull(food.icon to food.label,
-                entry.record.tag?.let { GlucoseTag.valueOf(it) }?.let { it.icon to it.label },
-                entry.record.meal?.let(MealType::valueOf)?.let { it.icon to it.label })
+            badges = emptyList()
+            val meal = entry.record.meal?.let(MealType::valueOf)
+            val ending = when (meal) {
+                MealType.BREAKFAST -> "завтрака"
+                MealType.LUNCH -> "обеда"
+                MealType.DINNER -> "ужина"
+                MealType.SNACK -> "перекуса"
+                null -> "еды"
+            }
+            contextLabel = when (food) {
+                FoodContext.BEFORE -> "До $ending"
+                FoodContext.AFTER -> "После $ending"
+                else -> food.label
+            }
         }
         else -> return
     }
     dev.dadyarri.medtracker.ui.MeasurementCardFrame("${entry.type.label}: $value", entry.at, badges, onClick) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(entry.type.label, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(contextLabel?.let { "${entry.type.label} · $it" } ?: entry.type.label,
+                style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.displaySmall)
         }
     }
