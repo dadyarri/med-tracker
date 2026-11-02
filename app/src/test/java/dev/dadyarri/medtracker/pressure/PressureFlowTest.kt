@@ -26,8 +26,8 @@ class PressureFlowTest {
         try {
             compose.setContent { MaterialTheme { PressureHome(model) } }
             compose.onNodeWithText("Записать давление").performClick()
-            compose.onNodeWithText("Верхнее, мм рт. ст.").performTextInput("120")
-            compose.onNodeWithText("Нижнее, мм рт. ст.").performTextInput("80")
+            compose.onNodeWithContentDescription("Верхнее").performTextInput("120")
+            compose.onNodeWithContentDescription("Нижнее").performTextInput("80")
             compose.onNodeWithText("Сохранить").performScrollTo().performClick()
             compose.waitUntil(5_000) {
                 compose.onAllNodesWithText("120/80 мм рт. ст.").fetchSemanticsNodes().size == 1

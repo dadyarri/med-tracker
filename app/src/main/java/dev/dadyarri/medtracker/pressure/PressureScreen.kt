@@ -10,11 +10,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import dev.dadyarri.medtracker.R
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
@@ -80,7 +87,7 @@ fun PressureHome(model: PressureViewModel = koinViewModel()) {
         val close = { editorId = null; model.error.value = null }
         ModalBottomSheet(
             onDismissRequest = { if (!busy) close() },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
             sheetGesturesEnabled = !busy,
             properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !busy),
         ) {
@@ -107,7 +114,8 @@ internal fun PressureEditor(
     val context = if (automaticContext) PressureContext.forHour(localTime.hour).name else manualContext
     val androidContext = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
-    var comment by rememberSaveable(id) { mutableStateOf(initial[5]) }
+    // Keep historical comments when editing; the compact form no longer exposes this field.
+    val comment = initial[5]
     var deleting by rememberSaveable(id) { mutableStateOf(false) }
     var confirmUnusual by rememberSaveable(id) { mutableStateOf(false) }
     var attempted by rememberSaveable(id) { mutableStateOf(false) }
@@ -119,17 +127,19 @@ internal fun PressureEditor(
     Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(if (editing) "Изменить давление" else "Записать давление", style = MaterialTheme.typography.headlineSmall)
-        NumberInput("Верхнее, мм рт. ст.", systolic, busy) { value ->
-            val advance = completedNumber(systolic, value, '7'..'9', 70..250)
-            systolic = value
-            if (advance) diastolicFocus.requestFocus()
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            NumberInput("Верхнее", systolic, busy, Modifier.weight(1f)) { value ->
+                val advance = completedNumber(systolic, value, '7'..'9', 70..250)
+                systolic = value
+                if (advance) diastolicFocus.requestFocus()
+            }
+            NumberInput("Нижнее", diastolic, busy, Modifier.weight(1f).focusRequester(diastolicFocus)) { value ->
+                val advance = completedNumber(diastolic, value, '4'..'9', 40..150)
+                diastolic = value
+                if (advance) pulseFocus.requestFocus()
+            }
         }
-        NumberInput("Нижнее, мм рт. ст.", diastolic, busy, Modifier.focusRequester(diastolicFocus)) { value ->
-            val advance = completedNumber(diastolic, value, '4'..'9', 40..150)
-            diastolic = value
-            if (advance) pulseFocus.requestFocus()
-        }
-        NumberInput("Пульс, уд/мин · необязательно", pulse, busy, Modifier.focusRequester(pulseFocus)) { value ->
+        NumberInput("Пульс", pulse, busy, Modifier.focusRequester(pulseFocus)) { value ->
             val advance = completedNumber(pulse, value, '3'..'9', 30..220)
             pulse = value
             if (advance) {
@@ -137,35 +147,27 @@ internal fun PressureEditor(
                 keyboard?.hide()
             }
         }
-        Text("Дата и время измерения", style = MaterialTheme.typography.titleSmall)
-        OutlinedButton(onClick = { keyboard?.hide(); picker = "date" }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-            Text("Дата: " + localTime.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.uuuu")))
+        OutlinedButton(onClick = { keyboard?.hide(); picker = "date" }, enabled = !busy,
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Дата измерения" }) {
+            Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(localTime.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.uuuu")))
         }
         OutlinedButton(onClick = { keyboard?.hide(); picker = "time" }, enabled = !busy,
             modifier = Modifier.fillMaxWidth().focusRequester(timeFocus).semantics { contentDescription = "Время измерения" }) {
-            Text("Время: " + localTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")))
+            Icon(painterResource(R.drawable.ic_clock), contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(localTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")))
         }
-        Text("Контекст · необязательно", style = MaterialTheme.typography.titleSmall)
-        Column {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PressureContext.entries.take(2).forEach { item ->
-                    FilterChip(context == item.name, {
-                        manualContext = if (!automaticContext && context == item.name) null else item.name
-                        automaticContext = false
-                    }, label = { Text(item.label) }, enabled = !busy)
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PressureContext.entries.drop(2).forEach { item ->
-                    FilterChip(context == item.name, {
-                        manualContext = if (!automaticContext && context == item.name) null else item.name
-                        automaticContext = false
-                    }, label = { Text(item.label) }, enabled = !busy)
+        Text("Контекст", style = MaterialTheme.typography.titleSmall)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            PressureContext.entries.forEach { item ->
+                ContextButton(item, context == item.name, !busy) {
+                    manualContext = if (!automaticContext && context == item.name) null else item.name
+                    automaticContext = false
                 }
             }
         }
-        OutlinedTextField(comment, { comment = it }, label = { Text("Комментарий · необязательно") },
-            enabled = !busy, modifier = Modifier.fillMaxWidth())
         if (attempted) draft.error()?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         Button(enabled = !busy, modifier = Modifier.fillMaxWidth(), onClick = {
@@ -215,6 +217,27 @@ internal fun PressureEditor(
         dismissButton = { TextButton(onClick = { confirmUnusual = false }) { Text("Проверить") } })
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ContextButton(item: PressureContext, checked: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val icon = when (item) {
+        PressureContext.MORNING -> R.drawable.ic_context_morning
+        PressureContext.DAY -> R.drawable.ic_context_day
+        PressureContext.EVENING -> R.drawable.ic_context_evening
+        PressureContext.NIGHT -> R.drawable.ic_context_night
+    }
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+        tooltip = { PlainTooltip { Text(item.label) } },
+        state = rememberTooltipState(),
+    ) {
+        FilledIconToggleButton(checked = checked, onCheckedChange = { onClick() }, enabled = enabled,
+            modifier = Modifier.size(56.dp)) {
+            Icon(painterResource(icon), contentDescription = item.label, modifier = Modifier.size(28.dp))
+        }
+    }
+}
+
 // Advance only on appended input; deleting, restoring a draft or opening an edit
 // must not unexpectedly move focus. These ranges affect focus, never validation.
 private fun completedNumber(previous: String, value: String, twoDigitStart: CharRange, range: IntRange): Boolean =
@@ -225,6 +248,26 @@ private fun completedNumber(previous: String, value: String, twoDigitStart: Char
 
 @Composable
 private fun NumberInput(label: String, value: String, busy: Boolean, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
-    OutlinedTextField(value, onChange, label = { Text(label) }, enabled = !busy,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = modifier.fillMaxWidth())
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.clearAndSetSemantics { })
+        BasicTextField(
+            value = value,
+            onValueChange = onChange,
+            enabled = !busy,
+            textStyle = MaterialTheme.typography.displaySmall.copy(color = MaterialTheme.colorScheme.onSurface),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
+            decorationBox = { field ->
+                Box(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(vertical = 4.dp),
+                    contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
+                    if (value.isEmpty()) Text("—", style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.clearAndSetSemantics { })
+                    field()
+                }
+            },
+        )
+    }
 }

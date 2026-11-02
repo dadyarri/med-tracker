@@ -10,6 +10,6 @@ import dev.dadyarri.medtracker.pressure.PressureEditor
 @Composable
 private fun PressureEditorPreview() {
     MaterialTheme {
-        PressureEditor("preview", listOf("", "", "", "03.11.2026 08:45", "", ""), false, false, null, {}, {}, {})
+        PressureEditor("preview", listOf("120", "80", "72", "03.11.2026 08:45", "", ""), false, false, null, {}, {}, {})
     }
 }
