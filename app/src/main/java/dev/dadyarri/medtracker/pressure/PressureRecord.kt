@@ -56,6 +56,7 @@ data class PressureDraft(
     val time: String,
     val context: String? = null,
     val comment: String = "",
+    val originalAt: Long? = null,
 ) {
     fun error(): String? = when {
         systolic.toIntOrNull()?.let { it > 0 } != true -> "Введите положительное целое верхнее давление."
@@ -66,7 +67,8 @@ data class PressureDraft(
         context != null && PressureContext.entries.none { it.name == context } -> "Выберите контекст из списка."
         else -> null
     }
-    fun instant(): Long? = try {
+    fun instant(): Long? = originalAt?.takeIf { format(it) == time } ?: parseInstant()
+    private fun parseInstant(): Long? = try {
         LocalDateTime.parse(time, TIME_FORMAT).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
     } catch (_: Exception) { null }
 

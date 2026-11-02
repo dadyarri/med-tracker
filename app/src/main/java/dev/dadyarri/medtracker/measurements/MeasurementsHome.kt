@@ -78,7 +78,8 @@ fun MeasurementsHome(
         editorType = kind.name
         editing = entry != null
         editorId = entry?.id ?: UUID.randomUUID().toString()
-        val now = PressureDraft.format(System.currentTimeMillis())
+        val openedAt = System.currentTimeMillis()
+        val now = PressureDraft.format(openedAt)
         initial = when (entry) {
             is JournalEntry.Meal -> emptyList()
             is JournalEntry.Pressure -> PressureDraft.from(entry.record).let {
@@ -92,8 +93,8 @@ fun MeasurementsHome(
                 listOf(decimalText(BigDecimal.valueOf(it.hundredths.toLong(), 2)), PressureDraft.format(it.measuredAt),
                     "", it.unit, it.foodContext, it.tag.orEmpty(), it.comment, it.meal.orEmpty(), it.mealEventId.orEmpty())
             }
-            null -> if (kind == JournalType.PRESSURE) listOf("", "", "", now, "", "")
-                else listOf("", now, "", glucoseUnit.name, FoodContext.NONE.name, "", "")
+            null -> if (kind == JournalType.PRESSURE) listOf("", "", "", now, "", "", openedAt.toString())
+                else listOf("", now, "", glucoseUnit.name, FoodContext.NONE.name, "", "", "", "", openedAt.toString())
         }
     }
     val all = (journal(pressures.orEmpty(), weights.orEmpty(), glucose.orEmpty()) + meals.map(JournalEntry::Meal))
@@ -108,12 +109,14 @@ fun MeasurementsHome(
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             JournalType.entries.filter { it != JournalType.MEAL || mealsModel != null }.forEach { item ->
-                RecordAction(item) { if (item == JournalType.MEAL) mealMenu = true else open(null, item) }
-            }
-            DropdownMenu(expanded = mealMenu, onDismissRequest = { mealMenu = false }) {
-                MealType.entries.forEach { item ->
-                    DropdownMenuItem(text = { Text(item.label) }, enabled = !mealBusy,
-                        onClick = { mealMenu = false; mealsModel?.start(item) })
+                Box {
+                    RecordAction(item) { if (item == JournalType.MEAL) mealMenu = true else open(null, item) }
+                    if (item == JournalType.MEAL) DropdownMenu(expanded = mealMenu, onDismissRequest = { mealMenu = false }) {
+                        MealType.entries.forEach { meal ->
+                            DropdownMenuItem(text = { Text(meal.label) }, enabled = !mealBusy,
+                                onClick = { mealMenu = false; mealsModel?.start(meal) })
+                        }
+                    }
                 }
             }
         }
@@ -195,6 +198,7 @@ fun MeasurementsHome(
                     FoodContext.valueOf(initial[4]), initial[5].ifEmpty { null }?.let(GlucoseTag::valueOf), initial[6],
                     initial.getOrNull(7)?.ifEmpty { null }?.let(MealType::valueOf),
                     initial.getOrNull(8)?.ifEmpty { null },
+                    initial.getOrNull(9)?.toLongOrNull(),
                 )
                 MeasurementEditor(id, draft, editing, busy, measurementError,
                     onSave = { model.save(id, editing, it, close) },

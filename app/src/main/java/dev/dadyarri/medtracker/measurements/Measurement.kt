@@ -65,9 +65,10 @@ data class MeasurementDraft(
     val food: FoodContext = FoodContext.NONE, val tag: GlucoseTag? = null, val comment: String = "",
     val meal: MealType? = null,
     val mealEventId: String? = null,
+    val originalAt: Long? = null,
 ) {
     fun scaled(): Int? = scaledValue(value, if (type == MeasurementType.WEIGHT) 1 else 2)
-    fun instant() = PressureDraft(time = time).instant()
+    fun instant() = PressureDraft(time = time, originalAt = originalAt).instant()
     fun error(): String? = when {
         scaled() == null -> if (type == MeasurementType.WEIGHT) "Введите положительный вес с точностью до 0,1 кг."
             else "Введите положительную глюкозу: не более двух знаков после запятой."

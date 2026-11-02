@@ -65,7 +65,7 @@ internal fun MeasurementEditor(
     val selected = LocalDateTime.parse(time, PressureDraft.TIME_FORMAT)
     val context = if (automatic) PressureContext.forHour(selected.hour).name else manual
     val draft = MeasurementDraft(initial.type, value, time, context, GlucoseUnit.valueOf(unit),
-        FoodContext.valueOf(food), tag?.let(GlucoseTag::valueOf), comment, meal?.let(MealType::valueOf), mealEventId)
+        FoodContext.valueOf(food), tag?.let(GlucoseTag::valueOf), comment, meal?.let(MealType::valueOf), mealEventId, initial.originalAt)
     val androidContext = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
     BackHandler(enabled = busy) {}

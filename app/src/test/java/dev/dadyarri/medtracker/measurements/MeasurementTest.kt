@@ -8,6 +8,21 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 class MeasurementTest {
+    @Test fun originalSecondsSurviveAndChronologyUsesThem() {
+        val base = java.time.LocalDateTime.of(2026, 11, 3, 8, 45).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val exact = base + 45_123
+        val time = dev.dadyarri.medtracker.pressure.PressureDraft.format(exact)
+        val pressure = dev.dadyarri.medtracker.pressure.PressureDraft("120", "80", time = time, originalAt = exact)
+        assertEquals(exact, pressure.instant())
+        val weight = MeasurementDraft(MeasurementType.WEIGHT, "72,3", time, originalAt = exact)
+        assertEquals(exact, weight.instant())
+        assertNotEquals(exact, weight.copy(time = "03.11.2026 08:46").instant())
+        val records = journal(emptyList(),
+            listOf(WeightRecord("later", 723, null, "", exact, 1, 1)),
+            listOf(GlucoseRecord("earlier", 550, "MMOL", "NONE", null, "", base + 10_000, 2, 2)))
+        assertEquals(listOf("later", "earlier"), records.map { it.id })
+    }
+
     @Test fun decimalInputIsExactAndRejectsPrecisionLossAndOverflow() {
         assertEquals(723, scaledValue("72,3", 1))
         assertEquals(567, scaledValue("5.67", 2))

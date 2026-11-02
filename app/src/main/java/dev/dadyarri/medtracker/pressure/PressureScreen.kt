@@ -55,7 +55,7 @@ internal fun PressureEditor(
     val diastolicFocus = remember { FocusRequester() }
     val pulseFocus = remember { FocusRequester() }
     val timeFocus = remember { FocusRequester() }
-    val draft = PressureDraft(systolic, diastolic, pulse, time, context, comment)
+    val draft = PressureDraft(systolic, diastolic, pulse, time, context, comment, initial.getOrNull(6)?.toLongOrNull())
     BackHandler(enabled = busy) { }
     Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
