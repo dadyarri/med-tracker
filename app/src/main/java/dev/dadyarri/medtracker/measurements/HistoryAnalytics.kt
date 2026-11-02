@@ -1,6 +1,5 @@
 package dev.dadyarri.medtracker.measurements
 
-import android.app.DatePickerDialog
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -12,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import dev.dadyarri.medtracker.pressure.PressureContext
 import java.time.Instant
@@ -71,14 +69,9 @@ private fun ChoiceRow(options: List<Pair<String, String>>, selected: String, onS
 @Composable
 private fun DateFilterButton(label: String, day: LocalDate, modifier: Modifier, onSelect: (LocalDate) -> Unit) {
     var open by rememberSaveable { mutableStateOf(false) }
-    val context = LocalContext.current
     OutlinedButton(onClick = { open = true }, modifier = modifier) { Text("$label ${day.format(dateFormat)}") }
-    if (open) DisposableEffect(Unit) {
-        val dialog = DatePickerDialog(context, { _, y, m, d -> onSelect(LocalDate.of(y, m + 1, d)) },
-            day.year, day.monthValue - 1, day.dayOfMonth)
-        dialog.setOnDismissListener { open = false }
-        dialog.show()
-        onDispose { dialog.setOnDismissListener(null); dialog.dismiss() }
+    if (open) dev.dadyarri.medtracker.ui.AppDatePicker(day, { open = false }) {
+        onSelect(it); open = false
     }
 }
 

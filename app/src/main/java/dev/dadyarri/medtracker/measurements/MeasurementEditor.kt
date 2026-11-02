@@ -1,8 +1,5 @@
 package dev.dadyarri.medtracker.measurements
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
-import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,8 +7,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -19,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import dev.dadyarri.medtracker.ui.ContextChoice
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -66,7 +60,6 @@ internal fun MeasurementEditor(
     val context = if (automatic) PressureContext.forHour(selected.hour).name else manual
     val draft = MeasurementDraft(initial.type, value, time, context, GlucoseUnit.valueOf(unit),
         FoodContext.valueOf(food), tag?.let(GlucoseTag::valueOf), comment, meal?.let(MealType::valueOf), mealEventId, initial.originalAt)
-    val androidContext = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
     BackHandler(enabled = busy) {}
     Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -91,7 +84,7 @@ internal fun MeasurementEditor(
             OutlinedButton(onClick = { keyboard?.hide(); picker = "date" }, enabled = !busy,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 modifier = Modifier.weight(1.3f).semantics { contentDescription = "Дата измерения" }) {
-                Icon(Icons.Default.DateRange, null, Modifier.size(20.dp))
+                Icon(painterResource(dev.dadyarri.medtracker.R.drawable.ic_calendar), null, Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(time.substringBefore(' '))
             }
@@ -185,19 +178,15 @@ internal fun MeasurementEditor(
             modifier = Modifier.fillMaxWidth()) { Text("Удалить запись") }
         TextButton(onClick = onClose, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Закрыть") }
     }
-    if (picker != null) DisposableEffect(picker) {
-        fun changed(next: LocalDateTime) {
-            val updated = next.format(PressureDraft.TIME_FORMAT)
-            if (updated != time) { time = updated; automatic = true }
-        }
-        val dialog = if (picker == "date") DatePickerDialog(androidContext, { _, y, m, d ->
-            changed(LocalDate.of(y, m + 1, d).atTime(selected.toLocalTime()))
-        }, selected.year, selected.monthValue - 1, selected.dayOfMonth)
-        else TimePickerDialog(androidContext, { _, h, m -> changed(selected.withHour(h).withMinute(m)) },
-            selected.hour, selected.minute, DateFormat.is24HourFormat(androidContext))
-        dialog.setOnDismissListener { picker = null }
-        dialog.show()
-        onDispose { dialog.setOnDismissListener(null); dialog.dismiss() }
+    if (picker == "date") dev.dadyarri.medtracker.ui.AppDatePicker(selected.toLocalDate(), { picker = null }) { day ->
+        val updated = day.atTime(selected.toLocalTime()).format(PressureDraft.TIME_FORMAT)
+        if (updated != time) { time = updated; automatic = true }
+        picker = null
+    }
+    if (picker == "time") dev.dadyarri.medtracker.ui.AppTimePicker(selected.hour, selected.minute, { picker = null }) { h, m ->
+        val updated = selected.withHour(h).withMinute(m).format(PressureDraft.TIME_FORMAT)
+        if (updated != time) { time = updated; automatic = true }
+        picker = null
     }
     if (unusual) AlertDialog(onDismissRequest = { if (!busy) unusual = false },
         title = { Text("Проверьте значение") }, text = { Text("Значение необычно. Убедитесь, что число и единицы указаны верно.") },

@@ -14,15 +14,11 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -44,20 +40,20 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination(val title: String, val icon: ImageVector) {
-    TODAY("Сегодня", Icons.Default.DateRange),
-    HISTORY("История", Icons.AutoMirrored.Filled.List),
-    MEDICATIONS("Лекарства", Icons.Default.Favorite),
-    SETTINGS("Настройки", Icons.Default.Settings),
+private enum class Destination(val title: String, val icon: Int) {
+    TODAY("Сегодня", R.drawable.ic_calendar),
+    HISTORY("История", R.drawable.ic_history),
+    MEDICATIONS("Лекарства", R.drawable.ic_heart),
+    SETTINGS("Настройки", R.drawable.ic_settings),
 }
 
-private data class PermissionStep(val title: String, val description: String, val icon: ImageVector)
+private data class PermissionStep(val title: String, val description: String, val icon: Int)
 
 private val permissionSteps = listOf(
-    PermissionStep("Уведомления", "Используются для отображения напоминаний и позволяют быстро отложить или пропустить их.", Icons.Default.Notifications),
-    PermissionStep("Будильники", "Используются для того, чтобы напоминания приходили в точное время.", Icons.Default.DateRange),
-    PermissionStep("Полноэкранные уведомления", "Позволяет показывать уведомление на полный экран поверх экрана блокировки.", Icons.Default.Lock),
-    PermissionStep("Работа в фоне", "Исключение из оптимизации батареи помогает напоминаниям работать, когда приложение закрыто.", Icons.Default.Info),
+    PermissionStep("Уведомления", "Используются для отображения напоминаний и позволяют быстро отложить или пропустить их.", R.drawable.ic_bell),
+    PermissionStep("Будильники", "Используются для того, чтобы напоминания приходили в точное время.", R.drawable.ic_calendar),
+    PermissionStep("Полноэкранные уведомления", "Позволяет показывать уведомление на полный экран поверх экрана блокировки.", R.drawable.ic_lock),
+    PermissionStep("Работа в фоне", "Исключение из оптимизации батареи помогает напоминаниям работать, когда приложение закрыто.", R.drawable.ic_info),
 )
 
 @Composable
@@ -116,7 +112,7 @@ private fun MedTrackerApp(model: AlarmViewModel = koinViewModel()) {
             },
             onFinish = model::finishWizard,
         )
-        else -> dev.dadyarri.medtracker.measurements.MeasurementsHome(mealsModel = koinViewModel())
+        else -> dev.dadyarri.medtracker.measurements.MeasurementsHome(mealsModel = koinViewModel(), reminderSettings = koinViewModel())
     }
 }
 
@@ -146,7 +142,7 @@ internal fun PermissionWizard(
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.primaryContainer) {
-                        Icon(item.icon, contentDescription = null, Modifier.padding(20.dp).size(40.dp),
+                        Icon(androidx.compose.ui.res.painterResource(item.icon), contentDescription = null, Modifier.padding(20.dp).size(40.dp),
                             tint = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                     Text(item.title, style = MaterialTheme.typography.headlineLarge)
@@ -205,7 +201,7 @@ internal fun EmptyHome(
                         NavigationBarItem(
                             selected = item == destination,
                             onClick = { selected = item.name },
-                            icon = { Icon(item.icon, contentDescription = null) },
+                            icon = { Icon(androidx.compose.ui.res.painterResource(item.icon), contentDescription = null) },
                             label = { Text(item.title) },
                         )
                     }

@@ -3,9 +3,6 @@ package dev.dadyarri.medtracker.pressure
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -45,7 +42,7 @@ internal fun PressureHistoryCard(record: PressureRecord, onClick: () -> Unit) {
                 Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.Favorite, contentDescription = null, Modifier.size(18.dp),
+                        Icon(painterResource(dev.dadyarri.medtracker.R.drawable.ic_heart), contentDescription = null, Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.primary)
                         Text("Пульс", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
                         Text(pulse.toString(), style = MaterialTheme.typography.headlineSmall)
@@ -74,7 +71,7 @@ internal fun PressureRecordList(records: List<PressureRecord>, groupByDate: Bool
 private fun PressureDateHeader(date: LocalDate) {
     Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp).semantics(mergeDescendants = true) { heading() },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(Icons.Default.DateRange, contentDescription = null, Modifier.size(18.dp),
+        Icon(painterResource(dev.dadyarri.medtracker.R.drawable.ic_calendar), contentDescription = null, Modifier.size(18.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(date.format(DateTimeFormatter.ofPattern("dd.MM.uuuu")), style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)

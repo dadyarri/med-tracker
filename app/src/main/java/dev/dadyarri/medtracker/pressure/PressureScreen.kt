@@ -1,8 +1,5 @@
 package dev.dadyarri.medtracker.pressure
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
-import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,15 +9,12 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import dev.dadyarri.medtracker.R
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -45,7 +39,6 @@ internal fun PressureEditor(
     var picker by rememberSaveable(id) { mutableStateOf<String?>(null) }
     val localTime = runCatching { LocalDateTime.parse(time, PressureDraft.TIME_FORMAT) }.getOrElse { LocalDateTime.now() }
     val context = if (automaticContext) PressureContext.forHour(localTime.hour).name else manualContext
-    val androidContext = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
     // Keep historical comments when editing; the compact form no longer exposes this field.
     val comment = initial[5]
@@ -84,7 +77,7 @@ internal fun PressureEditor(
             OutlinedButton(onClick = { keyboard?.hide(); picker = "date" }, enabled = !busy,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 modifier = Modifier.weight(1.3f).semantics { contentDescription = "Дата измерения" }) {
-                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(painterResource(dev.dadyarri.medtracker.R.drawable.ic_calendar), contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(localTime.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.uuuu")))
             }
@@ -116,33 +109,15 @@ internal fun PressureEditor(
         if (editing) OutlinedButton(onClick = { deleting = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Удалить запись") }
         TextButton(onClick = onClose, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Закрыть") }
     }
-    if (picker != null) {
-        DisposableEffect(picker) {
-            val selected = localTime
-            val dialog = if (picker == "date") {
-                DatePickerDialog(androidContext, { _, year, month, day ->
-                    val updated = LocalDate.of(year, month + 1, day).atTime(selected.toLocalTime()).format(PressureDraft.TIME_FORMAT)
-                    if (updated != time) {
-                        time = updated
-                        automaticContext = true
-                    }
-                }, selected.year, selected.monthValue - 1, selected.dayOfMonth)
-            } else {
-                TimePickerDialog(androidContext, { _, hour, minute ->
-                    val updated = selected.withHour(hour).withMinute(minute).format(PressureDraft.TIME_FORMAT)
-                    if (updated != time) {
-                        time = updated
-                        automaticContext = true
-                    }
-                }, selected.hour, selected.minute, DateFormat.is24HourFormat(androidContext))
-            }
-            dialog.setOnDismissListener { picker = null }
-            dialog.show()
-            onDispose {
-                dialog.setOnDismissListener(null)
-                dialog.dismiss()
-            }
-        }
+    if (picker == "date") dev.dadyarri.medtracker.ui.AppDatePicker(localTime.toLocalDate(), { picker = null }) { day ->
+        val updated = day.atTime(localTime.toLocalTime()).format(PressureDraft.TIME_FORMAT)
+        if (updated != time) { time = updated; automaticContext = true }
+        picker = null
+    }
+    if (picker == "time") dev.dadyarri.medtracker.ui.AppTimePicker(localTime.hour, localTime.minute, { picker = null }) { hour, minute ->
+        val updated = localTime.withHour(hour).withMinute(minute).format(PressureDraft.TIME_FORMAT)
+        if (updated != time) { time = updated; automaticContext = true }
+        picker = null
     }
     if (deleting) AlertDialog(onDismissRequest = { if (!busy) deleting = false },
         title = { Text("Удалить измерение?") }, text = { Text("Восстановить запись после удаления не получится.") },

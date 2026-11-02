@@ -1,6 +1,5 @@
 package dev.dadyarri.medtracker.reminders
 
-import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -24,7 +22,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun ReminderSettingsScreen(
     model: ReminderSettingsViewModel = koinViewModel(),
-    extra: @Composable () -> Unit = {},
+    extra: @Composable (List<ReminderSetting>) -> Unit = {},
 ) {
     val values by model.settings.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
@@ -36,7 +34,7 @@ fun ReminderSettingsScreen(
         item("measurements_title") { Text("Измерения", style = MaterialTheme.typography.titleMedium) }
         items(values.filter { it.kind in listOf(ReminderKind.PRESSURE, ReminderKind.WEIGHT) },
             key = { it.kind }) { ReminderCard(it, busy, model::save) }
-        item("glucose_cycle") { extra() }
+        item("glucose_cycle") { extra(values) }
         item("meals_title") { Text("Питание", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp)) }
         items(values.filter { it.kind !in listOf(ReminderKind.PRESSURE, ReminderKind.WEIGHT) },
             key = { it.kind }) { ReminderCard(it, busy, model::save) }
@@ -48,7 +46,6 @@ internal fun ReminderCard(value: ReminderSetting, busy: Boolean, onSave: (Remind
     var picker by rememberSaveable(value.kind) { mutableStateOf<String?>(null) }
     var frequency by rememberSaveable(value.kind) { mutableStateOf(false) }
     var weeks by rememberSaveable(value.kind, value.weeks) { mutableStateOf(value.weeks.toString()) }
-    val context = LocalContext.current
     Card(shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -93,22 +90,10 @@ internal fun ReminderCard(value: ReminderSetting, busy: Boolean, onSave: (Remind
             onSave(value.copy(weeks = weeks.toInt())); frequency = false
         }) { Text("Сохранить") } },
         dismissButton = { TextButton(onClick = { frequency = false }) { Text("Отмена") } })
-    if (picker == "date") {
-        val state = rememberDatePickerState(initialSelectedDateMillis = value.anchor.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli())
-        DatePickerDialog(onDismissRequest = { picker = null },
-            confirmButton = { TextButton(enabled = !busy && state.selectedDateMillis != null, onClick = {
-                val selected = java.time.Instant.ofEpochMilli(state.selectedDateMillis!!).atZone(java.time.ZoneOffset.UTC).toLocalDate()
-                onSave(value.copy(anchor = selected)); picker = null
-            }) { Text("Выбрать") } },
-            dismissButton = { TextButton(onClick = { picker = null }) { Text("Отмена") } }) {
-            DatePicker(state = state, showModeToggle = false)
-        }
+    if (picker == "date") dev.dadyarri.medtracker.ui.AppDatePicker(value.anchor, { picker = null }) {
+        onSave(value.copy(anchor = it)); picker = null
     }
-    if (picker == "time") DisposableEffect(Unit) {
-        val dialog = TimePickerDialog(context, { _, h, m ->
-            onSave(value.copy(minute = h * 60 + m))
-        }, value.minute / 60, value.minute % 60, android.text.format.DateFormat.is24HourFormat(context))
-        dialog.setOnDismissListener { picker = null }; dialog.show()
-        onDispose { dialog.setOnDismissListener(null); dialog.dismiss() }
+    if (picker == "time") dev.dadyarri.medtracker.ui.AppTimePicker(value.minute / 60, value.minute % 60, { picker = null }) { h, m ->
+        onSave(value.copy(minute = h * 60 + m)); picker = null
     }
 }

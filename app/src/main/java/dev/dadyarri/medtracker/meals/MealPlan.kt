@@ -21,6 +21,15 @@ data class GlucoseCycle(
         val days = ChronoUnit.DAYS.between(LocalDate.parse(startDate), date)
         return if (!active || days < 0) null else (days % 3).toInt() + 1
     }
+    fun withMealTimes(settings: List<dev.dadyarri.medtracker.reminders.ReminderSetting>): GlucoseCycle {
+        fun minute(kind: dev.dadyarri.medtracker.reminders.ReminderKind) =
+            settings.find { it.kind == kind }?.minute ?: kind.defaultMinute
+        return copy(
+            breakfastMinute = minute(dev.dadyarri.medtracker.reminders.ReminderKind.BREAKFAST),
+            lunchMinute = minute(dev.dadyarri.medtracker.reminders.ReminderKind.LUNCH),
+            dinnerMinute = minute(dev.dadyarri.medtracker.reminders.ReminderKind.DINNER),
+        )
+    }
     fun resume(date: LocalDate) = copy(active = true, startDate = date.toString())
     fun valid() = listOf(breakfastMinute, lunchMinute, dinnerMinute).all { it in 0..1439 } && afterMinutes in 1..1440
 }
@@ -40,7 +49,7 @@ object GlucoseCyclePlan {
             Instant.ofEpochMilli(it.startedAt).atZone(zone).toLocalDate() == date }
             .minWithOrNull(compareBy<MealEvent> { it.startedAt }.thenBy { it.createdAt }.thenBy { it.id })
         return buildList {
-            add(GlucoseTask("$date-before", date.atStartOfDay().plusMinutes(minute.toLong()).atZone(zone).toInstant().toEpochMilli(),
+            add(GlucoseTask("$date-before", date.atStartOfDay().plusMinutes(minute.toLong()).atZone(zone).toInstant().minusSeconds(30 * 60).toEpochMilli(),
                 if (day == 1) "FASTING" else "BEFORE", type, null))
             if (first != null) add(GlucoseTask("$date-after",
                 Instant.ofEpochMilli(first.startedAt).plusSeconds(cycle.afterMinutes * 60L).toEpochMilli(),

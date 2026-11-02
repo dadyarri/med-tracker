@@ -8,6 +8,17 @@ class MealPlanTest {
     private val zone = ZoneId.of("Europe/Moscow")
     private val date = LocalDate.of(2026, 11, 3)
     private fun at(day: LocalDate, hour: Int) = day.atTime(hour, 0).atZone(zone).toInstant().toEpochMilli()
+    @Test fun mealScheduleIsTheSourceEvenWhenMealRemindersArePaused() {
+        val setting = dev.dadyarri.medtracker.reminders.ReminderSetting(
+            dev.dadyarri.medtracker.reminders.ReminderKind.BREAKFAST, paused = true, minute = 15)
+        val cycle = GlucoseCycle(active = true, startDate = date.toString(), breakfastMinute = 600)
+            .withMealTimes(listOf(setting))
+        val task = GlucoseCyclePlan.tasks(cycle, date, emptyList(), zone).single()
+        assertEquals(date.minusDays(1).atTime(23, 45).atZone(zone).toInstant().toEpochMilli(), task.at)
+        val updated = cycle.withMealTimes(listOf(setting.copy(minute = 9 * 60)))
+        assertEquals(date.atTime(8, 30).atZone(zone).toInstant().toEpochMilli(),
+            GlucoseCyclePlan.tasks(updated, date, emptyList(), zone).single().at)
+    }
     @Test fun calendarCycleAdvancesWithoutMealsAndResumesAtDayOne() {
         val cycle = GlucoseCycle(active = true, startDate = date.toString())
         assertEquals(1, cycle.day(date))

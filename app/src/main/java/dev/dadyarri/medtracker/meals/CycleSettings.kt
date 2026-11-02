@@ -1,6 +1,5 @@
 package dev.dadyarri.medtracker.meals
 
-import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -9,7 +8,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -22,9 +20,7 @@ import java.time.LocalDate
 fun CycleSettings(cycle: GlucoseCycle?, busy: Boolean, onToggle: () -> Unit, onSave: (GlucoseCycle) -> Unit) {
     val current = cycle ?: GlucoseCycle(startDate = LocalDate.now().toString())
     var after by rememberSaveable(current.afterMinutes) { mutableStateOf(current.afterMinutes.toString()) }
-    var picker by rememberSaveable { mutableStateOf<Int?>(null) }
     var interval by rememberSaveable { mutableStateOf(false) }
-    val context = LocalContext.current
     Card(shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -47,11 +43,10 @@ fun CycleSettings(cycle: GlucoseCycle?, busy: Boolean, onToggle: () -> Unit, onS
                         Text("${index + 1}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(12.dp))
                     }
                     Text(title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    OutlinedButton(onClick = { picker = index }, enabled = !busy,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        modifier = Modifier.semantics { contentDescription = "Время до еды: день ${index + 1}" }) {
-                        Text("%02d:%02d".format(times[index] / 60, times[index] % 60))
-                    }
+                    val before = Math.floorMod(times[index] - 30, 1440)
+                    Text("%02d:%02d".format(before / 60, before % 60),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { contentDescription = "Время до еды: день ${index + 1}" })
                 }
             }
             OutlinedButton(onClick = { interval = true }, enabled = !busy,
@@ -76,18 +71,5 @@ fun CycleSettings(cycle: GlucoseCycle?, busy: Boolean, onToggle: () -> Unit, onS
             onSave(current.copy(afterMinutes = after.toInt())); interval = false
         }) { Text("Сохранить") } },
         dismissButton = { TextButton(onClick = { interval = false }) { Text("Отмена") } })
-    if (picker != null) DisposableEffect(picker) {
-        val index = picker!!
-        val minute = listOf(current.breakfastMinute, current.lunchMinute, current.dinnerMinute)[index]
-        val dialog = TimePickerDialog(context, { _, h, m ->
-            val value = h * 60 + m
-            onSave(when (index) {
-                0 -> current.copy(breakfastMinute = value)
-                1 -> current.copy(lunchMinute = value)
-                else -> current.copy(dinnerMinute = value)
-            })
-        }, minute / 60, minute % 60, android.text.format.DateFormat.is24HourFormat(context))
-        dialog.setOnDismissListener { picker = null }; dialog.show()
-        onDispose { dialog.setOnDismissListener(null); dialog.dismiss() }
-    }
+
 }

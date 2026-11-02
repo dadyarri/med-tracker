@@ -37,11 +37,13 @@ fun MeasurementsHome(
     pressure: PressureViewModel = koinViewModel(),
     model: MeasurementViewModel = koinViewModel(),
     mealsModel: dev.dadyarri.medtracker.meals.MealViewModel? = null,
+    reminderSettings: dev.dadyarri.medtracker.reminders.ReminderSettingsViewModel? = null,
 ) {
     val pressures by pressure.records.collectAsStateWithLifecycle()
     val weights by model.weights.collectAsStateWithLifecycle()
     val glucose by model.glucose.collectAsStateWithLifecycle()
     val meals by (mealsModel?.meals ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList<dev.dadyarri.medtracker.meals.MealEvent>())).collectAsStateWithLifecycle()
+    val schedule by (reminderSettings?.settings ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList<dev.dadyarri.medtracker.reminders.ReminderSetting>())).collectAsStateWithLifecycle()
     val cycle by (mealsModel?.cycle ?: kotlinx.coroutines.flow.MutableStateFlow<dev.dadyarri.medtracker.meals.GlucoseCycle?>(null)).collectAsStateWithLifecycle()
     val mealBusy by (mealsModel?.busy ?: kotlinx.coroutines.flow.MutableStateFlow(false)).collectAsStateWithLifecycle()
     var mealMenu by remember { mutableStateOf(false) }
@@ -132,8 +134,8 @@ fun MeasurementsHome(
             }
         }
     }, settingsContent = {
-        if (mealsModel != null) dev.dadyarri.medtracker.reminders.ReminderSettingsScreen {
-            dev.dadyarri.medtracker.meals.CycleSettings(cycle, mealBusy, mealsModel::toggleCycle, mealsModel::setCycle)
+        if (mealsModel != null) dev.dadyarri.medtracker.reminders.ReminderSettingsScreen { mealSchedule ->
+            dev.dadyarri.medtracker.meals.CycleSettings((cycle ?: dev.dadyarri.medtracker.meals.GlucoseCycle(startDate = currentDate.toString())).withMealTimes(mealSchedule), mealBusy, mealsModel::toggleCycle, mealsModel::setCycle)
         }
     }) { today ->
         val visible = if (today) HistoryFilter(start = currentDate, end = currentDate).apply(all) else filter.apply(all)
@@ -141,7 +143,7 @@ fun MeasurementsHome(
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp), state = listState,
             contentPadding = PaddingValues(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (today && cycle?.active == true) item("glucose_plan") {
-                val tasks = dev.dadyarri.medtracker.meals.GlucoseCyclePlan.tasks(cycle!!, currentDate, meals, ZoneId.systemDefault())
+                val tasks = dev.dadyarri.medtracker.meals.GlucoseCyclePlan.tasks(cycle!!.withMealTimes(schedule), currentDate, meals, ZoneId.systemDefault())
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Контроль глюкозы · день ${cycle!!.day(currentDate)}", style = MaterialTheme.typography.titleMedium)
                     tasks.forEach { task ->

@@ -16,6 +16,10 @@ import org.robolectric.annotation.Config
 @Config(sdk = [36], application = Application::class)
 class PressureEditorTest {
     @get:Rule val compose = createComposeRule()
+    @org.junit.Before fun use24HourClock() {
+        android.provider.Settings.System.putString(org.robolectric.RuntimeEnvironment.getApplication().contentResolver,
+            android.provider.Settings.System.TIME_12_24, "24")
+    }
     private val empty = listOf("", "", "", "03.11.2026 08:45", "", "")
 
     @Test fun draftSurvivesRecreationAndOptionalFieldsDoNotBlockSaving() {
@@ -108,29 +112,22 @@ class PressureEditorTest {
         }
         compose.onNodeWithContentDescription("Утро").assertIsOn()
         compose.onNodeWithContentDescription("Время измерения").performScrollTo().performClick()
-        compose.runOnIdle {
-            val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as android.app.TimePickerDialog
-            dialog.updateTime(20, 15)
-            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
-        }
+        setTime(20, 15)
+        compose.onNodeWithText("Выбрать").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
+        compose.onNodeWithText("20:15").assertExists()
         compose.onNodeWithContentDescription("Вечер").assertIsOn()
         compose.onNodeWithContentDescription("Ночь").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Время измерения").performScrollTo().performClick()
-        compose.runOnIdle {
-            val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as android.app.TimePickerDialog
-            dialog.updateTime(12, 0)
-            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
-        }
+        setTime(12, 0)
+        compose.onNodeWithText("Выбрать").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
         compose.onNodeWithContentDescription("День").assertIsOn()
         restoration.emulateSavedInstanceStateRestore()
         compose.onNodeWithContentDescription("День").assertIsOn()
         compose.onNodeWithContentDescription("Ночь").performScrollTo().performClick()
         compose.onNodeWithText("03.11.2026").performScrollTo().performClick()
-        compose.runOnIdle {
-            val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as android.app.DatePickerDialog
-            dialog.updateDate(2026, 1, 28)
-            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
-        }
+        compose.onNode(hasContentDescription("Switch to text input mode", substring = true)).performClick()
+        compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextReplacement("02282026")
+        compose.onNodeWithText("Выбрать").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
         compose.onNodeWithText("28.02.2026").assertExists()
         compose.onNodeWithContentDescription("День").assertIsOn()
         compose.onNodeWithContentDescription("Верхнее").performScrollTo().performTextInput("120")
@@ -150,18 +147,20 @@ class PressureEditorTest {
         compose.onNodeWithContentDescription("Ночь").assertIsOn()
         compose.onNodeWithText("Автоматически по времени").assertDoesNotExist()
         compose.onNodeWithContentDescription("Время измерения").performScrollTo().performClick()
-        compose.runOnIdle {
-            val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as android.app.TimePickerDialog
-            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
-        }
+        compose.onNodeWithText("Выбрать").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick) { it() }
         compose.onNodeWithContentDescription("Ночь").assertIsOn()
         compose.onNodeWithContentDescription("Время измерения").performScrollTo().performClick()
-        compose.runOnIdle {
-            val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as android.app.TimePickerDialog
-            dialog.updateTime(16, 0)
-            dialog.getButton(android.content.DialogInterface.BUTTON_NEGATIVE).performClick()
-        }
+        setTime(16, 0)
+        compose.onNodeWithText("Отмена").performClick()
         compose.onNodeWithContentDescription("Ночь").assertIsOn()
+    }
+
+    private fun setTime(hour: Int, minute: Int) {
+        compose.onNodeWithText("Ввести время").performScrollTo().performClick()
+        compose.onAllNodes(hasSetTextAction() and hasAnyAncestor(isDialog())).onFirst().performTextReplacement(hour.toString())
+        compose.onAllNodes(hasSetTextAction() and hasAnyAncestor(isDialog())).onLast().performTextReplacement(minute.toString().padStart(2, '0'))
+        compose.onAllNodes(hasSetTextAction() and hasAnyAncestor(isDialog())).onFirst().assertTextEquals(hour.toString().padStart(2, '0'))
+        compose.onAllNodes(hasSetTextAction() and hasAnyAncestor(isDialog())).onLast().assertTextEquals(minute.toString().padStart(2, '0'))
     }
 
     @Test fun deletionNeedsExplicitConfirmation() {
