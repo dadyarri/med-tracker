@@ -92,9 +92,12 @@ class AlarmPresentationTest {
         })
         AlarmNotifications(application)
         assertFalse(manager.getNotificationChannel("test_alarm_sound_v1").shouldVibrate())
+        assertEquals("Звуковые напоминания", manager.getNotificationChannel("test_alarm_sound_v1").name)
         val current = manager.getNotificationChannel(AlarmNotifications.SOUND_CHANNEL)
         assertEquals(NotificationManager.IMPORTANCE_HIGH, current.importance)
         assertTrue(current.shouldVibrate())
+        assertEquals("Звуковые напоминания", current.name)
+        assertEquals("Тихие напоминания", manager.getNotificationChannel(AlarmNotifications.QUIET_CHANNEL).name)
         assertNull(current.sound) // Service owns audio; no duplicate ringtone.
     }
     @Test fun alarmCoversSecureKeyguardAndClosesAfterCancellationWithoutUnlocking() = runBlocking {

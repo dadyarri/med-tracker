@@ -44,13 +44,13 @@ class AlarmActivity : ComponentActivity() {
                         verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         Spacer(Modifier.height(24.dp))
                         Text("MedTracker", style = MaterialTheme.typography.titleLarge)
-                        Text("Тестовый будильник", style = MaterialTheme.typography.headlineLarge)
+                        Text("Напоминание", style = MaterialTheme.typography.headlineLarge)
                         Text(remember { ZonedDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) },
                             style = MaterialTheme.typography.displayLarge)
                         val alarm = currentAlarm
                         if (alarm == null) Text("Проверка сигнала…")
                         else {
-                            Text("Отключение звука сохраняет автоматические повторы. Отмена завершает тест.")
+                            Text("Отключение звука сохраняет автоматические повторы.")
                             Button(onClick = { act(AlarmController.MUTE) }, enabled = !busy,
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) { Text("Отключить звук") }
                             val canSnooze = alarm.snoozes < AlarmPolicy.MAX_SNOOZES &&
@@ -58,7 +58,7 @@ class AlarmActivity : ComponentActivity() {
                             FilledTonalButton(onClick = { act(AlarmController.SNOOZE) }, enabled = !busy && canSnooze,
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) { Text("Отложить на ${alarm.snoozeMinutes} мин") }
                             OutlinedButton(onClick = { act(AlarmController.CANCEL) }, enabled = !busy,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) { Text("Отменить тест и повторы") }
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) { Text("Отменить напоминание") }
                             Text("Отложений: ${alarm.snoozes}/${AlarmPolicy.MAX_SNOOZES}")
                         }
                     }

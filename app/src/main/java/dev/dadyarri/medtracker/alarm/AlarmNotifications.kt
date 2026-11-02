@@ -10,15 +10,20 @@ import dev.dadyarri.medtracker.R
 class AlarmNotifications(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
     init {
-        manager.createNotificationChannel(NotificationChannel(SOUND_CHANNEL, "Тестовые будильники", NotificationManager.IMPORTANCE_HIGH).apply {
-            description = "Звук воспроизводится службой с громкостью будильника"
+        // Rename the retired channel without resetting user-controlled behavior.
+        manager.getNotificationChannel("test_alarm_sound_v1")?.let { channel ->
+            channel.name = "Звуковые напоминания"
+            manager.createNotificationChannel(channel)
+        }
+        manager.createNotificationChannel(NotificationChannel(SOUND_CHANNEL, "Звуковые напоминания", NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "Напоминания со звуком и вибрацией"
             setSound(null, null)
             // The service owns audio. Vibration makes this an alerting channel so
             // heads-up is eligible without a second, overlapping ringtone.
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 250, 150, 250)
         })
-        manager.createNotificationChannel(NotificationChannel(QUIET_CHANNEL, "Тихие тесты", NotificationManager.IMPORTANCE_DEFAULT).apply {
+        manager.createNotificationChannel(NotificationChannel(QUIET_CHANNEL, "Тихие напоминания", NotificationManager.IMPORTANCE_DEFAULT).apply {
             setSound(null, null)
         })
     }
@@ -36,8 +41,8 @@ class AlarmNotifications(private val context: Context) {
         val open = if (audibleAlarm) alarmIntent(plan.token) else main
         val builder = NotificationCompat.Builder(context, if (plan.sound && ringing) SOUND_CHANNEL else QUIET_CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("MedTracker · тестовый сигнал")
-            .setContentText(if (ringing) "Тест разрешений и будильников" else "Звук отключён; повторы остаются до отмены")
+            .setContentTitle("MedTracker · напоминание")
+            .setContentText(if (ringing) "Время напоминания" else "Звук отключён; повторы остаются до отмены")
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

@@ -15,8 +15,8 @@ extensions.configure<ApplicationExtension> {
         applicationId = "dev.dadyarri.medtracker"
         minSdk = 36
         targetSdk = 37
-        versionCode = 3
-        versionName = "0.2-alarm-screen"
+        versionCode = 4
+        versionName = "0.3-onboarding"
     }
     testOptions { unitTests.isIncludeAndroidResources = true }
     buildFeatures { compose = true }
@@ -38,10 +38,13 @@ dependencies {
     implementation("io.insert-koin:koin-androidx-compose:4.2.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.17")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

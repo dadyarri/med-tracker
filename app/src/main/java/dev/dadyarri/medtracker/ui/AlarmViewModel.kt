@@ -34,7 +34,7 @@ class AlarmViewModel(application: Application, private val controller: AlarmCont
     val permissions = MutableStateFlow(Permissions())
     val settings = context.preferences.data.catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
         .map { Pair(it[WIZARD] ?: false, it[SAMSUNG] ?: false) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false to false)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val busy = MutableStateFlow(false)
 
     fun refresh() {

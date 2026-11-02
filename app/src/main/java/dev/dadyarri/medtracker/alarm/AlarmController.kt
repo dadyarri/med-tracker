@@ -63,9 +63,9 @@ class AlarmController(private val context: Context, private val db: AlarmDatabas
     suspend fun create(delay: Int, sound: Boolean, repeat: Int, window: Int, snooze: Int) = mutex.withLock {
         val plan = AlarmPolicy.create(now(), delay, sound, token(), repeat, window, snooze)
         clearPresentation()
-        save(plan, "Назначен ${if (sound) "звуковой" else "тихий"} тест через $delay с (предыдущий заменён)")
+        save(plan, "Назначен ${if (sound) "звуковой" else "тихий"} сигнал через $delay с (предыдущий заменён)")
         scheduleSystem(plan)
-        message.value = dao.current()?.diagnostic ?: "Тестовый сигнал назначен"
+        message.value = dao.current()?.diagnostic ?: "Напоминание назначено"
     }
 
     suspend fun reconcile(recovery: Boolean = false, reason: String = "Возврат в приложение") = mutex.withLock {
@@ -108,12 +108,12 @@ class AlarmController(private val context: Context, private val db: AlarmDatabas
         when (action) {
             CANCEL -> {
                 cancelSystem(); clearPresentation()
-                save(plan.copy(token = token(), nextAt = null, status = AlarmStatus.CANCELLED), "Тест отменён")
+                save(plan.copy(token = token(), nextAt = null, status = AlarmStatus.CANCELLED), "Напоминание отменено")
             }
             MUTE -> if (plan.status == AlarmStatus.RINGING) {
                 stopSound()
                 val muted = plan.copy(status = AlarmStatus.MUTED)
-                save(muted, "Звук отключён; тест не подтверждён, автоматический повтор сохранён", row.diagnostic)
+                save(muted, "Звук отключён; автоматический повтор сохранён", row.diagnostic)
                 AlarmNotifications(context).show(muted, allowFullscreen = false)
             }
             SNOOZE -> {
