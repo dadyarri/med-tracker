@@ -1,30 +1,61 @@
 # MedTracker
 
-Minimal Android application using Kotlin, Jetpack Compose and Gradle Kotlin DSL.
+Персональное офлайн-приложение для Android 16+. Сейчас реализован **этап 1**:
+тестовый будильник и мастер разрешений. Медицинские функции пока не реализованы.
+Спецификация: [docs/specification.md](docs/specification.md).
 
-- Application ID: `dev.dadyarri.medtracker`
-- Minimum / target / compile Android SDK: 36 (Android 16)
-- JDK 21; JVM bytecode target 17
-- Gradle 8.13, Android Gradle Plugin 8.13.2, Kotlin 2.2.21
+- Kotlin, Jetpack Compose / Material3 с системной темой и динамическими цветами.
+- Room — текущий тест и журнал; DataStore — настройки мастера; Koin — зависимости.
+- Application ID `dev.dadyarri.medtracker`, min/target/compile SDK 36.
+- JDK 21; JVM target 17; Gradle 8.13, AGP 8.13.2, Kotlin 2.2.21.
+- Нативный `AlarmManager.setAlarmClock`, foreground mediaPlayback и уведомления.
+  Нет сервера, сети приложения, аналитики и резервного копирования.
 
-Set `JAVA_HOME` to a full JDK 21 and `ANDROID_HOME` to the Android SDK.
-Install `platforms;android-36`, `build-tools;35.0.0` and `platform-tools`.
-Alternatively set the SDK path in an untracked `local.properties`.
+## Проверка на телефоне
+
+Открыть мастер и выдать разрешения. Samsung Never sleeping apps проверяется
+вручную, отметка в приложении не подтверждает системное состояние.
+Назначить тест через 30 секунд. Новая постановка заменяет предыдущую.
+Тихий тест не включает звук и не открывает полноэкранный UI.
+«Отключить звук» оставляет повтор, «Отложить» заменяет следующий повтор,
+«Отменить» завершает тест и все повторы. Параметры по умолчанию:
+15 минут / окно 120 минут / snooze 5 минут, максимум 3 раза.
+Один непрерывный звуковой сигнал ограничен 60 секундами.
+
+Обязательный ручной протокол и ограничения:
+[docs/alarm-spike-testing.md](docs/alarm-spike-testing.md).
+**Проверка на физическом Samsung ещё не выполнена.**
+
+## Сборка
+
+Установить полный JDK 21, Android SDK с `platforms;android-36`,
+`build-tools;35.0.0`, `platform-tools`; задать `JAVA_HOME` и `ANDROID_HOME`.
+Путь SDK также можно указать в игнорируемом `local.properties`.
 
 ```sh
-./gradlew assembleDebug lintDebug
+./gradlew assembleDebug testDebugUnitTest lintDebug
 ```
 
 APK: `app/build/outputs/apk/debug/app-debug.apk`.
-Open the project in Android Studio or use `./gradlew installDebug` with an
-Android 16+ device/emulator connected. No backend or credentials are required.
+Отчёты: `app/build/reports/`. JVM-тесты включают чистую политику расписания
+и Android API 36/Room через Robolectric. Они не подтверждают звук, экран
+блокировки, энергосбережение или особенности физического Samsung.
 
-In the prepared cloud environment:
+В подготовленной облачной среде перед Gradle:
 
 ```sh
 source /workspace/toolchains/env.sh
 cd /workspace/med-tracker
-./gradlew assembleDebug lintDebug
 ```
 
-The cloud environment keeps SDK/JDK and dependency caches outside the checkout.
+## GitHub Actions
+
+Workflow **Android APK** запускается при push в `master`/`feature/**`, в PR
+и вручную (`workflow_dispatch`). Он собирает debug APK, выполняет unit tests
+и Lint и сохраняет `MedTracker-debug-<run>` и `checks-<run>` на 14 дней.
+APK доступен после успешного запуска в Actions → Android APK → Artifacts.
+Артефакты GitHub скачиваются ZIP-архивом; перед установкой извлеките APK.
+
+Debug APK предназначен для тестирования. Между разными CI-запусками подпись
+может отличаться: для проверки обновления без удаления данных используйте
+один сохранённый debug keystore. Release-подпись не настроена.
