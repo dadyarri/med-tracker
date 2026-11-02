@@ -23,6 +23,8 @@ class ApplicationSmokeTest {
             val activity = Robolectric.buildActivity(MainActivity::class.java).setup()
             shadowOf(Looper.getMainLooper()).idle()
             assertFalse(activity.get().isFinishing)
+            assertFalse(shadowOf(activity.get()).showWhenLocked)
+            assertFalse(shadowOf(activity.get()).turnScreenOn)
             activity.pause().stop().destroy()
         } finally {
             GlobalContext.get().get<AlarmController>().scope.cancel()
