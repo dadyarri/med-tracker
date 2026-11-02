@@ -20,6 +20,9 @@ class MedTrackerApplication : Application() {
                 viewModel { AlarmViewModel(get(), get()) }
                 single { get<AlarmDatabase>().pressure() }
                 viewModel { dev.dadyarri.medtracker.pressure.PressureViewModel(get()) }
+                single { get<AlarmDatabase>().measurements() }
+                single { dev.dadyarri.medtracker.measurements.MeasurementSettings(get()) }
+                viewModel { dev.dadyarri.medtracker.measurements.MeasurementViewModel(get(), get()) }
             })
         }
     }

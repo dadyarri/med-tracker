@@ -1,6 +1,9 @@
 package dev.dadyarri.medtracker.alarm
 
 import androidx.room.*
+import dev.dadyarri.medtracker.measurements.WeightRecord
+import dev.dadyarri.medtracker.measurements.GlucoseRecord
+import dev.dadyarri.medtracker.measurements.MeasurementDao
 import dev.dadyarri.medtracker.pressure.PressureRecord
 import dev.dadyarri.medtracker.pressure.PressureDao
 import kotlinx.coroutines.flow.Flow
@@ -38,9 +41,10 @@ interface AlarmDao {
     @Insert suspend fun event(event: AlarmEvent)
 }
 
-@Database(entities = [AlarmRecord::class, AlarmEvent::class, PressureRecord::class], version = 2,
-    exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2)])
+@Database(entities = [AlarmRecord::class, AlarmEvent::class, PressureRecord::class, WeightRecord::class, GlucoseRecord::class], version = 3,
+    exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)])
 abstract class AlarmDatabase : RoomDatabase() {
     abstract fun alarms(): AlarmDao
     abstract fun pressure(): PressureDao
+    abstract fun measurements(): MeasurementDao
 }
