@@ -21,6 +21,7 @@ class MedTrackerApplication : Application() {
                 single { dev.dadyarri.medtracker.reminders.AlarmToneStore(get()) }
                 single { dev.dadyarri.medtracker.reminders.ReminderAlarmController(get(), get(), get()) }
                 viewModel { dev.dadyarri.medtracker.reminders.ReminderSettingsViewModel(get(), get()) }
+                viewModel { dev.dadyarri.medtracker.reminders.ReminderEntryViewModel(get(), get()) }
                 viewModel { AlarmViewModel(get(), get()) }
                 single { get<AlarmDatabase>().pressure() }
                 viewModel { dev.dadyarri.medtracker.pressure.PressureViewModel(get()) }

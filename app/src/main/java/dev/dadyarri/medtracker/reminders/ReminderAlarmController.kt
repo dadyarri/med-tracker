@@ -96,6 +96,18 @@ class ReminderAlarmController(private val context: Context, private val db: Alar
             }
         } else updatePresentation(rows)
     }
+    /** The record and its explicit task link commit together; scheduling outlives the editor. */
+    suspend fun saveEntry(key: String, revision: String, write: suspend (ReminderOccurrence) -> String) = mutex.withLock {
+        db.withTransaction {
+            val row = dao.all().find { it.key == key && it.revision == revision && it.canRecord }
+                ?: error("Reminder no longer available")
+            val recordId = write(row)
+            dao.save(listOf(row.copy(status = "COMPLETED", nextAt = null, recordId = recordId)))
+        }
+        val rows = refreshRows()
+        schedule(rows)
+        updatePresentation(rows)
+    }
     suspend fun ringing(token: String): List<ReminderOccurrence> = mutex.withLock {
         dao.all().presentation(token).takeIf { rows -> rows.any { it.status == "RINGING" } }.orEmpty()
     }

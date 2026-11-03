@@ -30,6 +30,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.UUID
+import dev.dadyarri.medtracker.reminders.*
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,12 +40,15 @@ fun MeasurementsHome(
     model: MeasurementViewModel = koinViewModel(),
     mealsModel: dev.dadyarri.medtracker.meals.MealViewModel? = null,
     reminderSettings: dev.dadyarri.medtracker.reminders.ReminderSettingsViewModel? = null,
+    reminders: ReminderAlarmController? = null,
 ) {
+    val activityContext = LocalContext.current
+    val plans by (reminders?.dao?.observe() ?: kotlinx.coroutines.flow.flowOf(emptyList<ReminderOccurrence>()))
+        .collectAsStateWithLifecycle(initialValue = emptyList())
     val pressures by pressure.records.collectAsStateWithLifecycle()
     val weights by model.weights.collectAsStateWithLifecycle()
     val glucose by model.glucose.collectAsStateWithLifecycle()
     val meals by (mealsModel?.meals ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList<dev.dadyarri.medtracker.meals.MealEvent>())).collectAsStateWithLifecycle()
-    val schedule by (reminderSettings?.settings ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList<dev.dadyarri.medtracker.reminders.ReminderSetting>())).collectAsStateWithLifecycle()
     val cycle by (mealsModel?.cycle ?: kotlinx.coroutines.flow.MutableStateFlow<dev.dadyarri.medtracker.meals.GlucoseCycle?>(null)).collectAsStateWithLifecycle()
     val mealBusy by (mealsModel?.busy ?: kotlinx.coroutines.flow.MutableStateFlow(false)).collectAsStateWithLifecycle()
     var mealMenu by remember { mutableStateOf(false) }
@@ -112,6 +117,18 @@ fun MeasurementsHome(
             if (previous != null && keys.any { it !in previous }) listState.scrollToItem(0)
         }
     }
+    @Composable
+    fun RecordCard(entry: JournalEntry) {
+        when (entry) {
+            is JournalEntry.Meal -> dev.dadyarri.medtracker.ui.MeasurementCardFrame(
+                "Еда: ${MealType.valueOf(entry.record.type).label}", entry.at, emptyList(), { mealEditor = entry.id }) {
+                Text(MealType.valueOf(entry.record.type).label, style = MaterialTheme.typography.displaySmall)
+            }
+            is JournalEntry.Pressure -> PressureHistoryCard(entry.record) { open(entry, entry.type) }
+            else -> MeasurementCard(entry, glucoseUnit) { open(entry, entry.type) }
+        }
+    }
+    val timeline = todayTimeline(all, plans, currentDate)
     val filter = HistoryFilter(
         type?.let(JournalType::valueOf),
         when (period) { "all" -> null; "custom" -> LocalDate.parse(from); else -> currentDate.minusDays(period.toLong() - 1) },
@@ -134,7 +151,7 @@ fun MeasurementsHome(
             }
         }
     }, settingsContent = {
-        if (mealsModel != null) dev.dadyarri.medtracker.reminders.ReminderSettingsScreen { mealSchedule ->
+        if (mealsModel != null) ReminderSettingsScreen(model = reminderSettings ?: koinViewModel()) { mealSchedule ->
             dev.dadyarri.medtracker.meals.CycleSettings((cycle ?: dev.dadyarri.medtracker.meals.GlucoseCycle(startDate = currentDate.toString())).withMealTimes(mealSchedule), mealBusy, mealsModel::toggleCycle, mealsModel::setCycle)
         }
     }) { today ->
@@ -142,15 +159,6 @@ fun MeasurementsHome(
         val loaded = pressures != null && weights != null && glucose != null
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp), state = listState,
             contentPadding = PaddingValues(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (today && cycle?.active == true) item("glucose_plan") {
-                val tasks = dev.dadyarri.medtracker.meals.GlucoseCyclePlan.tasks(cycle!!.withMealTimes(schedule), currentDate, meals, ZoneId.systemDefault())
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Контроль глюкозы · день ${cycle!!.day(currentDate)}", style = MaterialTheme.typography.titleMedium)
-                    tasks.forEach { task ->
-                        Text("${if (task.food == "FASTING") "Натощак" else if (task.food == "BEFORE") "До еды" else "После еды"} · ${PressureDraft.format(task.at).substringAfter(' ')}")
-                    }
-                }
-            }
             if (!today) {
                 item("filters") {
                     HistoryControls(filter, period, currentDate, { updated, selection ->
@@ -170,21 +178,20 @@ fun MeasurementsHome(
             }
             when {
                 !loaded -> item("loading") { CircularProgressIndicator() }
-                visible.isEmpty() -> item("empty") { Text(if (today) "Сегодня измерений нет" else "Нет измерений за выбранный период") }
+                today && timeline.isNotEmpty() -> items(timeline, key = { it.key }) { item ->
+                    item.planned?.let { planned ->
+                        PlannedReminderCard(planned) { activityContext.startActivity(reminderEntryIntent(activityContext, planned)) }
+                    }
+                    item.record?.let { RecordCard(it) }
+                }
+                visible.isEmpty() -> item("empty") { Text(if (today) "Сегодня записей нет" else "Нет измерений за выбранный период") }
                 else -> visible.groupBy { Instant.ofEpochMilli(it.at).atZone(ZoneId.systemDefault()).toLocalDate() }.forEach { (date, records) ->
                     if (!today) item("date_$date") {
                         Text(date.format(dateFormat), style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(top = 12.dp).semantics { heading() })
                     }
                     items(records, key = { it.key }, contentType = { it.type }) { entry ->
-                        when (entry) {
-                            is JournalEntry.Meal -> dev.dadyarri.medtracker.ui.MeasurementCardFrame(
-                                "Еда: ${MealType.valueOf(entry.record.type).label}", entry.at, emptyList(), { mealEditor = entry.id }) {
-                                Text(MealType.valueOf(entry.record.type).label, style = MaterialTheme.typography.displaySmall)
-                            }
-                            is JournalEntry.Pressure -> PressureHistoryCard(entry.record) { open(entry, entry.type) }
-                            else -> MeasurementCard(entry, glucoseUnit) { open(entry, entry.type) }
-                        }
+                        RecordCard(entry)
                     }
                 }
             }

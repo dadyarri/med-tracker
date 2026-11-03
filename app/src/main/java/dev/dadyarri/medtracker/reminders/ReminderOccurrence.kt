@@ -19,11 +19,16 @@ data class ReminderOccurrence(
     val token: String = "",
     val snoozes: Int = 0,
     val diagnostic: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val food: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val meal: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val mealEventId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val recordId: String? = null,
 ) {
     fun plan() = AlarmPlan(token, nextAt, endAt, true, AlarmStatus.valueOf(status), snoozes)
     fun withPlan(plan: AlarmPlan) = copy(nextAt = plan.nextAt, endAt = plan.endAt,
         status = plan.status.name, token = plan.token, snoozes = plan.snoozes)
-    val active get() = status !in listOf("CANCELLED", "EXPIRED")
+    val active get() = status !in listOf("CANCELLED", "EXPIRED", "COMPLETED")
+    val canRecord get() = status !in listOf("CANCELLED", "COMPLETED")
 }
 
 @Dao
@@ -39,8 +44,10 @@ object ReminderSchedule {
     fun desired(settings: List<ReminderSetting>, cycle: GlucoseCycle?, meals: List<MealEvent>,
                 now: Instant, zone: ZoneId): List<ReminderOccurrence> = buildList {
         val today = now.atZone(zone).toLocalDate()
-        fun addTask(key: String, source: String, revision: String, title: String, at: Long) {
-            add(ReminderOccurrence(key, source, revision, title, at, at, at + 120 * 60_000L))
+        fun addTask(key: String, source: String, revision: String, title: String, at: Long,
+                    food: String? = null, meal: String? = null, mealEventId: String? = null) {
+            add(ReminderOccurrence(key, source, revision, title, at, at, at + 120 * 60_000L,
+                food = food, meal = meal, mealEventId = mealEventId))
         }
         settings.filterNot { it.paused }.forEach { setting ->
             val revision = if (setting.kind == ReminderKind.WEIGHT)
@@ -55,7 +62,8 @@ object ReminderSchedule {
             } else for (offset in -1L..8L) {
                 val date = today.plusDays(offset)
                 val at = date.atTime(setting.minute / 60, setting.minute % 60).atZone(zone).toInstant()
-                addTask("${setting.kind}/$date", setting.kind.name, revision, setting.kind.label, at.toEpochMilli())
+                addTask("${setting.kind}/$date", setting.kind.name, revision, setting.kind.label, at.toEpochMilli(),
+                    meal = dev.dadyarri.medtracker.measurements.MealType.entries.find { it.name == setting.kind.name }?.name)
             }
         }
         if (cycle?.active == true) {
@@ -66,7 +74,7 @@ object ReminderSchedule {
                     val relation = when (task.food) { "FASTING" -> "натощак"; "BEFORE" -> "до еды"; else -> "после еды" }
                     addTask("GLUCOSE/${task.key}", "GLUCOSE",
                         "${effective.startDate}/${task.at}/${task.mealId}/${effective.afterMinutes}",
-                        "Глюкоза · $relation", task.at)
+                        "Глюкоза · $relation", task.at, task.food, task.meal.name, task.mealId)
                 }
             }
         }
@@ -80,9 +88,10 @@ object ReminderSchedule {
         val result = old.map { row ->
             val candidate = wanted[row.key]
             when {
-                !row.active -> row
+                row.status in listOf("CANCELLED", "COMPLETED") -> row
                 candidate == null || candidate.revision != row.revision ->
                     row.copy(nextAt = null, status = "CANCELLED", token = "", revision = "")
+                !row.active -> row
                 row.endAt <= now || (row.nextAt?.let { it < now - AlarmPolicy.DELIVERY_GRACE_MS } == true) ||
                     (recovery && row.nextAt?.let { it <= now } == true) ->
                     row.copy(nextAt = null, status = "EXPIRED", token = "")
@@ -95,6 +104,10 @@ object ReminderSchedule {
             if (row.dueAt >= now && (prior == null || prior.revision != row.revision))
                 result[row.key] = row
         }
-        return result.values.toList()
+        return result.values.map { row ->
+            val candidate = wanted[row.key]?.takeIf { it.revision == row.revision }
+            if (candidate != null) row.copy(food = candidate.food, meal = candidate.meal, mealEventId = candidate.mealEventId)
+            else row
+        }
     }
 }

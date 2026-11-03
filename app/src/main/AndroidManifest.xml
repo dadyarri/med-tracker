@@ -30,6 +30,9 @@
         <activity android:name=".reminders.ReminderAlarmActivity" android:exported="false"
             android:launchMode="singleTop" android:taskAffinity="${applicationId}.reminder"
             android:excludeFromRecents="true" android:showWhenLocked="true" android:turnScreenOn="true" />
+        <activity android:name=".reminders.ReminderEntryActivity" android:exported="false"
+            android:launchMode="singleTop" android:taskAffinity="${applicationId}.entry"
+            android:excludeFromRecents="true" android:theme="@style/Theme.MedTracker.Entry" />
         <receiver android:name=".reminders.ReminderAlarmReceiver" android:exported="false" />
         <service android:name=".reminders.ReminderSoundService" android:exported="false"
             android:foregroundServiceType="mediaPlayback" />

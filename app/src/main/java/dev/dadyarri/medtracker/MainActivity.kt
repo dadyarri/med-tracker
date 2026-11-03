@@ -113,7 +113,8 @@ private fun MedTrackerApp(model: AlarmViewModel = koinViewModel()) {
             },
             onFinish = model::finishWizard,
         )
-        else -> dev.dadyarri.medtracker.measurements.MeasurementsHome(mealsModel = koinViewModel(), reminderSettings = koinViewModel())
+        else -> dev.dadyarri.medtracker.measurements.MeasurementsHome(mealsModel = koinViewModel(),
+            reminderSettings = koinViewModel(), reminders = org.koin.compose.koinInject())
     }
 }
 

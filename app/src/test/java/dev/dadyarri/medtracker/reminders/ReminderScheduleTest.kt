@@ -40,6 +40,13 @@ class ReminderScheduleTest {
         assertEquals("EXPIRED", recovered.first().status)
         assertTrue(recovered.drop(1).all { it.status == "WAITING" })
     }
+    @Test fun pausingAlsoRemovesExpiredButStillRecordableTodayTasks() {
+        val all = ReminderSchedule.merge(emptyList(), desired(), now.toEpochMilli())
+        val expired = all.map { it.copy(status = "EXPIRED", nextAt = null) }
+        assertTrue(expired.all { it.canRecord })
+        val paused = ReminderSchedule.merge(expired, emptyList(), now.toEpochMilli())
+        assertTrue(paused.none { it.canRecord })
+    }
     @Test fun cycleUsesMealScheduleEvenWhenPausedAndAfterUsesActualFirstMeal() {
         val settings = listOf(ReminderSetting(ReminderKind.BREAKFAST, paused = true, minute = 540))
         val cycle = GlucoseCycle(active = true, startDate = "2026-11-03")
