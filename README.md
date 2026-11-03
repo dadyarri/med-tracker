@@ -65,6 +65,13 @@ cd /workspace/med-tracker
 
 ## GitHub Actions
 
+Workflow **Android Release Build** запускается при push в `master` и вручную
+для `master`. Он выполняет `assembleRelease testDebugUnitTest lintRelease`
+на JDK 21 с тем же Android SDK/NDK, что и debug CI. Release APK собирается
+без подписи; workflow не использует ключи и не публикует APK или отчёты
+в артефактах. Это проверка release-сборки; для скачиваемого установочного
+релиза отдельно нужны постоянная release-подпись и публикация артефакта.
+
 Workflow **Android APK** запускается при push в `master`/`feature/**`, в PR
 и вручную (`workflow_dispatch`). Он собирает debug APK, выполняет unit tests
 и Lint и сохраняет `MedTracker-debug-<run>` и `checks-<run>` на 14 дней.

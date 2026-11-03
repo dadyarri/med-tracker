@@ -1,0 +1,47 @@
+name: Android Release Build
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '13114758'
+          accept-android-sdk-licenses: false
+          log-accepted-android-sdk-licenses: false
+          packages: ''
+
+      - name: Accept Android SDK licenses
+        shell: bash
+        run: |
+          answers="$RUNNER_TEMP/android-sdk-license-answers.txt"
+          for i in {1..100}; do echo y; done > "$answers"
+          sdkmanager --sdk_root="$ANDROID_HOME" --licenses < "$answers"
+
+      - name: Install Android SDK
+        run: sdkmanager --sdk_root="$ANDROID_HOME" 'platforms;android-37' 'build-tools;36.0.0' 'platform-tools' 'ndk;29.0.14206865'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release, test and lint
+        run: ./gradlew --no-daemon assembleRelease testDebugUnitTest lintRelease --warning-mode all
