@@ -25,7 +25,8 @@ fun MedicationCardsPreview() {
     }
 }
 
-@Preview(widthDp = 400, heightDp = 850)
+@Preview(widthDp = 400, heightDp = 650)
+@Preview(widthDp = 400, heightDp = 650, fontScale = 1.5f)
 @Composable
 fun MedicationEditorPreview() {
     MaterialTheme { Surface { MedicationEditor(Medication("m", "Препарат", shape = "CAPSULE",

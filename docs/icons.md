@@ -28,6 +28,7 @@
 | ic_heart | cardiology |
 | ic_history | history |
 | ic_info | battery_saver |
+| ic_instructions | description |
 | ic_lock | screen_lock_portrait |
 | ic_notification | health_and_safety |
 | ic_settings | settings |

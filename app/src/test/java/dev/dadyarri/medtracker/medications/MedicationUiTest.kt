@@ -30,6 +30,47 @@ class MedicationUiTest {
             assertEquals("saved note", value.note)
         }
     }
+    @Test fun appearanceCancelPreservesOriginalAndConfirmKeepsIndependentCapsuleColors() {
+        val initial = Medication("m", "Препарат", form = "Капсулы", strength = "10 мг", note = "preserved")
+        var saved: Medication? = null
+        compose.setContent { MaterialTheme { MedicationEditor(initial, false, null, { saved = it }, {}) } }
+        compose.onNodeWithContentDescription("Внешний вид").performClick()
+        compose.onNodeWithContentDescription("Форма: Капсула").performClick()
+        compose.onNodeWithContentDescription("Цвет: B8DFFF").performScrollTo().performClick()
+        compose.onNodeWithText("Отмена").performClick()
+        compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(initial.shape, requireNotNull(saved).shape) }
+        compose.onNodeWithContentDescription("Внешний вид").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Форма: Капсула").performClick()
+        compose.onNodeWithContentDescription("Цвет: B8DFFF").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Вторая половина").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Цвет: FFDAD6").performScrollTo().performClick()
+        compose.onNodeWithText("Готово").performClick()
+        compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+        compose.runOnIdle {
+            val value = requireNotNull(saved)
+            assertEquals("CAPSULE", value.shape)
+            assertEquals(0xFFB8DFFF, value.color)
+            assertEquals(0xFFFFDAD6, value.secondColor)
+            assertEquals(initial.strength, value.strength)
+            assertEquals(initial.note, value.note)
+        }
+    }
+    @Test fun customUnitIsSelectedWithoutChangingDose() {
+        var saved: Medication? = null
+        compose.setContent { MaterialTheme { MedicationEditor(Medication("m", "Препарат"), false, null, { saved = it }, {}) } }
+        compose.onNodeWithContentDescription("Доза").performTextReplacement("2,5")
+        compose.onNodeWithContentDescription("Единица дозы").performClick()
+        compose.onNodeWithText("Другая…").performClick()
+        compose.onNodeWithContentDescription("Своя единица").performTextReplacement("мерная ложка")
+        compose.onNodeWithText("Выбрать").performClick()
+        compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+        compose.runOnIdle {
+            val value = requireNotNull(saved)
+            assertEquals("мерная ложка", value.unit)
+            assertEquals("2,5", value.usualDose)
+        }
+    }
     @Test fun intervalEditorBuildsFullSnapshotAndUsesLargeNumericField() {
         var saved: RegimenVersion? = null
         compose.setContent { MaterialTheme { RegimenEditor(Medication("m", "Препарат"), null, null, false, null,
