@@ -49,7 +49,7 @@ jobs:
           for i in {1..100}; do echo y; done > "$answers"
           sdkmanager --sdk_root="$ANDROID_HOME" --licenses < "$answers"
       - name: Install Android SDK
-        run: sdkmanager --sdk_root="$ANDROID_HOME" 'platforms;android-37' 'build-tools;36.0.0' 'platform-tools' 'ndk;29.0.14206865'
+        run: sdkmanager --sdk_root="$ANDROID_HOME" 'platforms;android-37.0' 'build-tools;36.0.0' 'platform-tools' 'ndk;29.0.14206865'
       - uses: gradle/actions/setup-gradle@v4
       - name: Build, test and lint
         run: ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug

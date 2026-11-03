@@ -42,7 +42,7 @@
 
 ## Сборка
 
-Установить полный JDK 21, Android SDK с `platforms;android-37`,
+Установить полный JDK 21, Android SDK с `platforms;android-37.0`,
 `build-tools;36.0.0`, `platform-tools`, `ndk;29.0.14206865`;
 задать `JAVA_HOME` и `ANDROID_HOME`.
 Путь SDK также можно указать в игнорируемом `local.properties`.
@@ -119,8 +119,10 @@ Release с другим сертификатом не обновит сущес�
 между сертификатами требует отдельного решения. Версия и versionCode берутся
 из `app/build.gradle.kts`; тег сборки сам по себе версию приложения не меняет.
 
-Проверка конфигурации: `assembleRelease testDebugUnitTest lintRelease` — exit 0,
-5s (часть задач из кеша). Команды проверки паролей и подписи проверены локально
+После исправления имени пакета SDK на `platforms;android-37.0` и явного
+`minorApiLevel = 0` проверено:
+`./gradlew --no-daemon assembleRelease testDebugUnitTest lintRelease --warning-mode all`
+— exit 0, 21s (unit tests из кеша). Команды проверки паролей и подписи проверены локально
 на временном тестовом ключе: `apksigner verify` — exit 0, схема v3.
 Публикация настоящего релиза проверяется после настройки Secrets и push в master.
 Скрипт настройки проверяется без GitHub и настоящих секретов:
@@ -128,7 +130,7 @@ Release с другим сертификатом не обновит сущес�
 PKCS12, проверяет загруженные значения через локальный fake gh, права файлов,
 повторный запуск, продолжение после сбоя и отказ опасных состояний.
 
-Workflow **Android APK** запускается при push в `master`/`feature/**`, в PR
+Workflow **Android APK** запускается при push в `feature/**`, в PR
 и вручную (`workflow_dispatch`). Он собирает debug APK, выполняет unit tests
 и Lint и сохраняет `MedTracker-debug-<run>` и `checks-<run>` на 14 дней.
 APK доступен после успешного запуска в Actions → Android APK → Artifacts.
