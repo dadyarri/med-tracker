@@ -67,10 +67,40 @@ cd /workspace/med-tracker
 
 Workflow **Android Release Build** запускается при push в `master` и вручную
 для `master`. Он выполняет `assembleRelease testDebugUnitTest lintRelease`
-на JDK 21 с тем же Android SDK/NDK, что и debug CI. Release APK собирается
-без подписи; workflow не использует ключи и не публикует APK или отчёты
-в артефактах. Это проверка release-сборки; для скачиваемого установочного
-релиза отдельно нужны постоянная release-подпись и публикация артефакта.
+на JDK 21 с тем же Android SDK/NDK, что и debug CI. После успешных проверок APK
+подписывается постоянным release-ключом через apksigner; подпись проверяется.
+В GitHub Releases публикуется `build-<run_number>`, привязанный к точному SHA
+сборки. Файлы: `MedTracker-release.apk`, `signing-certificate.txt`, `SHA256SUMS`.
+Сначала создаётся черновик с файлами, затем релиз публикуется и отмечается Latest.
+Повторный запуск дополняет черновик, но не перезаписывает опубликованный релиз.
+Ключ удаляется с runner после выполнения, в том числе при ошибке.
+Права `contents: write` выданы только release-job; PR не запускает этот workflow.
+
+Перед первым запуском владелец вручную добавляет в Settings → Secrets and
+variables → Actions → Repository secrets четыре секрета:
+
+| Secret | Значение |
+|---|---|
+| `ANDROID_RELEASE_KEYSTORE_BASE64` | Постоянный release-keystore, закодированный Base64 |
+| `ANDROID_RELEASE_KEY_ALIAS` | Alias ключа внутри keystore |
+| `ANDROID_RELEASE_STORE_PASSWORD` | Пароль keystore |
+| `ANDROID_RELEASE_KEY_PASSWORD` | Пароль приватного ключа |
+
+Base64 не шифрует ключ: используйте именно Secrets, не Variables, исходники
+или сообщения в чате. Храните оригинал keystore и пароли вне репозитория.
+Workflow не генерирует новый ключ и не подставляет debug-ключ при отсутствии
+release-secrets: он завершается ошибкой до сборки. Значения секретов не выводятся.
+Secrets настраиваются владельцем через интерфейс GitHub.
+
+Release с другим сертификатом не обновит существующую debug-установку.
+Не удаляйте приложение с медицинскими данными ради смены подписи; переход
+между сертификатами требует отдельного решения. Версия и versionCode берутся
+из `app/build.gradle.kts`; тег сборки сам по себе версию приложения не меняет.
+
+Проверка конфигурации: `assembleRelease testDebugUnitTest lintRelease` — exit 0,
+5s (часть задач из кеша). Команды проверки паролей и подписи проверены локально
+на временном тестовом ключе: `apksigner verify` — exit 0, схема v3.
+Публикация настоящего релиза проверяется после настройки Secrets и push в master.
 
 Workflow **Android APK** запускается при push в `master`/`feature/**`, в PR
 и вручную (`workflow_dispatch`). Он собирает debug APK, выполняет unit tests
