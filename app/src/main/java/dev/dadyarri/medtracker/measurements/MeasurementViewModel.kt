@@ -19,7 +19,8 @@ class MeasurementSettings(private val context: Context) {
     }
     suspend fun setUnit(unit: GlucoseUnit) { context.measurementPreferences.edit { it[unitKey] = unit.name } }
 }
-class MeasurementViewModel(private val dao: MeasurementDao, private val settings: MeasurementSettings? = null) : ViewModel() {
+class MeasurementViewModel(private val dao: MeasurementDao, private val settings: MeasurementSettings? = null,
+                           private val reminders: dev.dadyarri.medtracker.reminders.ReminderAlarmController? = null) : ViewModel() {
     val error = MutableStateFlow<String?>(null)
     val busy = MutableStateFlow(false)
     val weights = dao.weights().catch { error.value = "Не удалось загрузить вес."; emit(emptyList()) }
@@ -69,7 +70,10 @@ class MeasurementViewModel(private val dao: MeasurementDao, private val settings
         busy.value = true
         error.value = null
         viewModelScope.launch {
-            try { operation(); done() }
+            try {
+                if (reminders != null) reminders.changeJournal(operation) else operation()
+                done()
+            }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { error.value = "Не удалось сохранить изменение. Повторите попытку." }
             finally { busy.value = false }

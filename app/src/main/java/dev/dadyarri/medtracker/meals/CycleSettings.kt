@@ -1,6 +1,8 @@
 package dev.dadyarri.medtracker.meals
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import dev.dadyarri.medtracker.measurements.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -21,6 +23,7 @@ fun CycleSettings(cycle: GlucoseCycle?, busy: Boolean, onToggle: () -> Unit, onS
     val current = cycle ?: GlucoseCycle(startDate = LocalDate.now().toString())
     var after by rememberSaveable(current.afterMinutes) { mutableStateOf(current.afterMinutes.toString()) }
     var interval by rememberSaveable { mutableStateOf(false) }
+    var editingDay by rememberSaveable { mutableStateOf<Int?>(null) }
     Card(shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -34,19 +37,31 @@ fun CycleSettings(cycle: GlucoseCycle?, busy: Boolean, onToggle: () -> Unit, onS
                 Switch(checked = current.active, enabled = !busy, onCheckedChange = { onToggle() },
                     modifier = Modifier.semantics { contentDescription = "Напоминания: Глюкоза" })
             }
-            val titles = listOf("Натощак · после завтрака", "До и после обеда", "До и после ужина")
-            val times = listOf(current.breakfastMinute, current.lunchMinute, current.dinnerMinute)
-            titles.forEachIndexed { index, title ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            (1..3).forEach { day ->
+                val configuration = current.configuration(day)!!
+                val minute = when (configuration.meal) {
+                    MealType.BREAKFAST -> current.breakfastMinute
+                    MealType.LUNCH -> current.lunchMinute
+                    else -> current.dinnerMinute
+                }
+                Row(Modifier.fillMaxWidth().clickable(enabled = !busy) { editingDay = day }
+                    .semantics { contentDescription = "Настроить день $day" }, verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                        Text("${index + 1}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(12.dp))
+                        Text("$day", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(12.dp))
                     }
+                    Icon(painterResource(configuration.meal.icon), configuration.meal.label, Modifier.size(24.dp))
+                    val title = buildList {
+                        if (configuration.before != "NONE") add(FoodContext.valueOf(configuration.before).label)
+                        if (configuration.after) add("После еды")
+                    }.joinToString(" · ")
                     Text(title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    val before = Math.floorMod(times[index] - 30, 1440)
-                    Text("%02d:%02d".format(before / 60, before % 60),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.semantics { contentDescription = "Время до еды: день ${index + 1}" })
+                    if (configuration.before != "NONE") {
+                        val before = Math.floorMod(minute - 30, 1440)
+                        Text("%02d:%02d".format(before / 60, before % 60),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.semantics { contentDescription = "Время до еды: день $day" })
+                    }
                 }
             }
             OutlinedButton(onClick = { interval = true }, enabled = !busy,
@@ -56,6 +71,11 @@ fun CycleSettings(cycle: GlucoseCycle?, busy: Boolean, onToggle: () -> Unit, onS
                 Text("Через ${current.afterMinutes} мин после еды")
             }
         }
+    }
+    editingDay?.let { day ->
+        CycleDayDialog(day, current.configuration(day)!!, busy,
+            onDismiss = { editingDay = null },
+            onSave = { onSave(current.withDay(day, it)); editingDay = null })
     }
     if (interval) AlertDialog(onDismissRequest = { interval = false }, title = { Text("После начала еды") },
         text = {

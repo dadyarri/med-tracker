@@ -61,7 +61,8 @@ class ReminderEntryTest {
     }
     @Test fun notificationTapTargetsEntryWhileFullscreenTargetsAlarmAndActionsStay() {
         val context = org.robolectric.RuntimeEnvironment.getApplication()
-        val row = row("PRESSURE").copy(status = "RINGING", token = "token")
+        val row = row("PRESSURE").copy(status = "RINGING", token = "token",
+            endAt = System.currentTimeMillis() + 120 * 60_000L)
         val notification = ReminderNotifications(context).build(listOf(row), true)
         val intent = org.robolectric.Shadows.shadowOf(notification.contentIntent).savedIntent
         assertEquals(ReminderEntryActivity::class.java.name, intent.component!!.className)

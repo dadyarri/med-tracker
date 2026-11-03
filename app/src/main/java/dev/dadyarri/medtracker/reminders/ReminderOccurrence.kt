@@ -23,6 +23,7 @@ data class ReminderOccurrence(
     @ColumnInfo(defaultValue = "NULL") val meal: String? = null,
     @ColumnInfo(defaultValue = "NULL") val mealEventId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val recordId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val completionSignature: String? = null,
 ) {
     fun plan() = AlarmPlan(token, nextAt, endAt, true, AlarmStatus.valueOf(status), snoozes)
     fun withPlan(plan: AlarmPlan) = copy(nextAt = plan.nextAt, endAt = plan.endAt,
@@ -73,7 +74,7 @@ object ReminderSchedule {
                 GlucoseCyclePlan.tasks(effective, date, meals, zone).forEach { task ->
                     val relation = when (task.food) { "FASTING" -> "натощак"; "BEFORE" -> "до еды"; else -> "после еды" }
                     addTask("GLUCOSE/${task.key}", "GLUCOSE",
-                        "${effective.startDate}/${task.at}/${task.mealId}/${effective.afterMinutes}",
+                        "${effective.startDate}/${task.at}/${task.mealId}/${effective.afterMinutes}/${task.food}/${task.meal}",
                         "Глюкоза · $relation", task.at, task.food, task.meal.name, task.mealId)
                 }
             }
@@ -101,8 +102,11 @@ object ReminderSchedule {
         }.associateBy { it.key }.toMutableMap()
         desired.forEach { row ->
             val prior = previous[row.key]
-            if (row.dueAt >= now && (prior == null || prior.revision != row.revision))
-                result[row.key] = row
+            if (prior?.status != "COMPLETED" && (prior == null || prior.revision != row.revision)) {
+                if (row.dueAt >= now) result[row.key] = row
+                else if (row.source == "GLUCOSE")
+                    result[row.key] = row.copy(status = "EXPIRED", nextAt = null)
+            }
         }
         return result.values.map { row ->
             val candidate = wanted[row.key]?.takeIf { it.revision == row.revision }

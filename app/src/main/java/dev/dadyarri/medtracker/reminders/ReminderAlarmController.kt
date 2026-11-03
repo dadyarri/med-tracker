@@ -25,7 +25,7 @@ class ReminderAlarmController(private val context: Context, private val db: Alar
     fun start() {
         if (observation != null) return
         observation = scope.launch {
-            combine(store.settings, db.meals().cycle(), db.meals().observe()) { _, _, _ -> Unit }
+            combine(store.settings, db.meals().cycle(), db.meals().observe(), db.measurements().glucose()) { _, _, _, _ -> Unit }
                 .collect { try { reconcile() } catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { message.value = "Не удалось обновить будильники. Вернитесь в приложение." } }
         }
@@ -37,7 +37,9 @@ class ReminderAlarmController(private val context: Context, private val db: Alar
     private suspend fun refreshRows(recovery: Boolean = false): List<ReminderOccurrence> {
         val desired = ReminderSchedule.desired(store.settings.first(), db.meals().cycle().first(),
             db.meals().observe().first(), Instant.ofEpochMilli(now()), ZoneId.systemDefault())
-        val rows = ReminderSchedule.merge(dao.all(), desired, now(), recovery)
+        val merged = ReminderSchedule.merge(dao.all(), desired, now(), recovery)
+        val rows = dev.dadyarri.medtracker.meals.GlucoseTaskMatcher.reconcile(merged, desired,
+            db.measurements().glucose().first(), db.meals().observe().first(), now())
         dao.save(rows)
         return rows
     }
@@ -102,12 +104,22 @@ class ReminderAlarmController(private val context: Context, private val db: Alar
             val row = dao.all().find { it.key == key && it.revision == revision && it.canRecord }
                 ?: error("Reminder no longer available")
             val recordId = write(row)
-            dao.save(listOf(row.copy(status = "COMPLETED", nextAt = null, recordId = recordId)))
+            val signature = if (row.source == "GLUCOSE") db.measurements().glucose(recordId)?.let {
+                dev.dadyarri.medtracker.meals.GlucoseTaskMatcher.signature(it)
+            } else null
+            dao.save(listOf(row.copy(status = "COMPLETED", nextAt = null, recordId = recordId, completionSignature = signature)))
         }
-        val rows = refreshRows()
+        val rows = db.withTransaction { refreshRows() }
         schedule(rows)
         updatePresentation(rows)
     }
+    suspend fun changeJournal(write: suspend () -> Unit) = scope.async {
+        mutex.withLock {
+            val rows = db.withTransaction { write(); refreshRows() }
+            schedule(rows)
+            updatePresentation(rows)
+        }
+    }.await()
     suspend fun ringing(token: String): List<ReminderOccurrence> = mutex.withLock {
         dao.all().presentation(token).takeIf { rows -> rows.any { it.status == "RINGING" } }.orEmpty()
     }

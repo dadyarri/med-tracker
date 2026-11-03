@@ -60,6 +60,17 @@ class ReminderScheduleTest {
         assertEquals(at + 120 * 60_000L, after.dueAt)
         assertFalse(desired(settings, cycle.copy(active = false), listOf(meal)).any { it.source == "GLUCOSE" })
     }
+    @Test fun lateMealCreatesRecordableAfterTaskWithoutRetroactiveSound() {
+        val cycle = GlucoseCycle(active = true, startDate = "2026-11-03")
+        val meal = MealEvent("meal", "BREAKFAST", now.minusSeconds(3 * 3600).toEpochMilli(), 1, 1)
+        val wanted = desired(emptyList(), cycle, listOf(meal))
+        val merged = ReminderSchedule.merge(emptyList(), wanted, now.toEpochMilli())
+        val after = merged.single { it.key.endsWith("-after") }
+        assertEquals("EXPIRED", after.status)
+        assertNull(after.nextAt)
+        assertTrue(after.canRecord)
+        assertEquals(merged, ReminderSchedule.merge(merged, wanted, now.toEpochMilli()))
+    }
     @Test fun weeklyWeightStaysAnchoredAndDoesNotBecomeDaily() {
         val value = ReminderSetting(ReminderKind.WEIGHT, paused = false, minute = 480, weeks = 2,
             anchor = LocalDate.of(2026, 11, 3))

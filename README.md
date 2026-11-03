@@ -2,7 +2,8 @@
 
 Персональное офлайн-приложение для Android 16+. Реализованы мастер разрешений,
 механизм напоминаний, давление (этап 2 принят владельцем), вес и глюкоза,
-общая история, графики, статистика и фильтры (этап 3, ручная приёмка ожидается).
+общая история, графики, статистика и фильтры (этап 3 принят владельцем).
+Питание и настраиваемый цикл глюкозы реализованы; ручная приёмка этапа 4 ожидается.
 Спецификация: [docs/specification.md](docs/specification.md).
 
 - Kotlin, Jetpack Compose / Material3 с системной темой и динамическими цветами.
@@ -38,7 +39,9 @@
 [docs/alarm-spike-testing.md](docs/alarm-spike-testing.md).
 Основной чеклист alarm spike отмечен владельцем как пройденный на Samsung.
 Этап давления принят владельцем: [docs/pressure-testing.md](docs/pressure-testing.md).
-Проверки этапа 3 и ручной чеклист: [docs/measurements-testing.md](docs/measurements-testing.md).
+Проверки этапа 3: [docs/measurements-testing.md](docs/measurements-testing.md).
+Состав дней цикла, выполнение задач глюкозой из журнала, миграция и ручной
+чеклист этапа 4: [docs/meals-testing.md](docs/meals-testing.md).
 
 ## Сборка
 

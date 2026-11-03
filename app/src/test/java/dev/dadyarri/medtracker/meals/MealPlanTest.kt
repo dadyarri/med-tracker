@@ -19,6 +19,24 @@ class MealPlanTest {
         assertEquals(date.atTime(8, 30).atZone(zone).toInstant().toEpochMilli(),
             GlucoseCyclePlan.tasks(updated, date, emptyList(), zone).single().at)
     }
+    @Test fun configuredDaysChangeMealAndIndependentlyEnableBeforeAndAfter() {
+        val initial = GlucoseCycle(active = true, startDate = date.toString())
+        val afterOnly = initial.withDay(1, CycleDay(dev.dadyarri.medtracker.measurements.MealType.DINNER, "NONE", true))
+        val dinner = MealEvent("d", "DINNER", at(date, 19), 1, 1)
+        assertTrue(GlucoseCyclePlan.tasks(afterOnly, date, emptyList(), zone).isEmpty())
+        val after = GlucoseCyclePlan.tasks(afterOnly, date, listOf(dinner), zone).single()
+        assertEquals("AFTER", after.food)
+        assertEquals(at(date, 21), after.at)
+        val beforeOnly = afterOnly.withDay(2, CycleDay(dev.dadyarri.medtracker.measurements.MealType.BREAKFAST, "BEFORE", false))
+        val before = GlucoseCyclePlan.tasks(beforeOnly, date.plusDays(1), emptyList(), zone).single()
+        assertEquals("BEFORE", before.food)
+        assertEquals("BREAKFAST", before.meal.name)
+        assertEquals(date.plusDays(1).atTime(7, 30).atZone(zone).toInstant().toEpochMilli(), before.at)
+        assertEquals(beforeOnly.day1, beforeOnly.resume(date.plusDays(5)).day1)
+        assertFalse(initial.copy(day1 = "BREAKFAST/NONE/NONE").valid())
+        assertFalse(initial.copy(day2 = "SNACK/BEFORE/AFTER").valid())
+        assertFalse(initial.copy(startDate = "invalid").valid())
+    }
     @Test fun calendarCycleAdvancesWithoutMealsAndResumesAtDayOne() {
         val cycle = GlucoseCycle(active = true, startDate = date.toString())
         assertEquals(1, cycle.day(date))

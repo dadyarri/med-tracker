@@ -11,7 +11,8 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.UUID
 
-class MealViewModel(private val db: AlarmDatabase) : ViewModel() {
+class MealViewModel(private val db: AlarmDatabase,
+                    private val reminders: dev.dadyarri.medtracker.reminders.ReminderAlarmController? = null) : ViewModel() {
     val error = MutableStateFlow<String?>(null)
     val busy = MutableStateFlow(false)
     val meals = db.meals().observe().catch { error.value = "Не удалось загрузить питание."; emit(emptyList()) }
@@ -22,17 +23,15 @@ class MealViewModel(private val db: AlarmDatabase) : ViewModel() {
         val now = System.currentTimeMillis()
         save(MealEvent(UUID.randomUUID().toString(), type.name, now, now, now), false) {}
     }
-    fun save(meal: MealEvent, editing: Boolean, done: () -> Unit) = execute {
+    fun save(meal: MealEvent, editing: Boolean, done: () -> Unit) = execute(done) {
         require(MealType.entries.any { it.name == meal.type })
         if (editing) {
             val old = db.meals().get(meal.id) ?: kotlin.error("Missing meal")
             check(db.meals().update(meal.copy(createdAt = old.createdAt, updatedAt = System.currentTimeMillis())) == 1)
         } else db.meals().insert(meal)
-        done()
     }
-    fun delete(id: String, done: () -> Unit) = execute {
+    fun delete(id: String, done: () -> Unit) = execute(done) {
         db.withTransaction { db.meals().unlink(id); db.meals().delete(id) }
-        done()
     }
     fun setCycle(value: GlucoseCycle) = execute {
         require(value.valid())
@@ -42,11 +41,14 @@ class MealViewModel(private val db: AlarmDatabase) : ViewModel() {
         val old = cycle.value ?: GlucoseCycle(startDate = LocalDate.now().toString())
         setCycle(if (old.active) old.copy(active = false) else old.resume(LocalDate.now()))
     }
-    private fun execute(operation: suspend () -> Unit) {
+    private fun execute(done: () -> Unit = {}, operation: suspend () -> Unit) {
         if (busy.value) return
         busy.value = true; error.value = null
         viewModelScope.launch {
-            try { operation() }
+            try {
+                if (reminders != null) reminders.changeJournal(operation) else operation()
+                done()
+            }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { error.value = "Не удалось сохранить изменение. Повторите попытку." }
             finally { busy.value = false }

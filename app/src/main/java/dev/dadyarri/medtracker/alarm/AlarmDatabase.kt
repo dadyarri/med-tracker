@@ -42,8 +42,17 @@ interface AlarmDao {
     @Insert suspend fun event(event: AlarmEvent)
 }
 
-@Database(entities = [AlarmRecord::class, AlarmEvent::class, PressureRecord::class, WeightRecord::class, GlucoseRecord::class, MealEvent::class, GlucoseCycle::class, dev.dadyarri.medtracker.reminders.ReminderOccurrence::class], version = 7,
-    exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7)])
+class PreserveGlucoseCompletions : androidx.room.migration.AutoMigrationSpec {
+    override fun onPostMigrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("""UPDATE reminder_occurrence SET completionSignature =
+            (SELECT CAST(measuredAt AS TEXT) || '/' || foodContext || '/' || COALESCE(meal, '') || '/' || COALESCE(mealEventId, '')
+             FROM glucose WHERE glucose.id = reminder_occurrence.recordId)
+            WHERE source = 'GLUCOSE' AND status = 'COMPLETED'""")
+    }
+}
+
+@Database(entities = [AlarmRecord::class, AlarmEvent::class, PressureRecord::class, WeightRecord::class, GlucoseRecord::class, MealEvent::class, GlucoseCycle::class, dev.dadyarri.medtracker.reminders.ReminderOccurrence::class], version = 8,
+    exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7), AutoMigration(from = 7, to = 8, spec = PreserveGlucoseCompletions::class)])
 abstract class AlarmDatabase : RoomDatabase() {
     abstract fun alarms(): AlarmDao
     abstract fun pressure(): PressureDao

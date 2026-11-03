@@ -29,6 +29,46 @@ class ReminderSettingsUiTest {
         compose.onNodeWithText("Выбрать").performClick()
         compose.runOnIdle { assertEquals(initial.anchor, saved!!.anchor) }
     }
+    @Test fun dayDialogKeepsSaveAccessibleAtLargeFont() {
+        var saved = false
+        compose.setContent {
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density, 1.5f)
+            ) {
+                MaterialTheme {
+                    dev.dadyarri.medtracker.meals.CycleDayDialog(1,
+                        dev.dadyarri.medtracker.meals.CycleDay(dev.dadyarri.medtracker.measurements.MealType.BREAKFAST, "FASTING", true),
+                        false, {}, { saved = true })
+                }
+            }
+        }
+        compose.onNodeWithText("Сохранить").assertIsDisplayed()
+        compose.onNodeWithContentDescription("После еды: день 1").performScrollTo().performClick()
+        compose.onNodeWithText("Сохранить").performClick()
+        compose.runOnIdle { assertTrue(saved) }
+    }
+    @Test fun cycleDayEditorSavesOnlyChosenDayAndRejectsEmptyDay() {
+        val current = androidx.compose.runtime.mutableStateOf(GlucoseCycle(startDate = "2026-11-03"))
+        val initial = current.value
+        compose.setContent { MaterialTheme { CycleSettings(current.value, false, {}, { current.value = it }) } }
+        compose.onNodeWithContentDescription("Настроить день 1").performClick()
+        compose.onNode(hasContentDescription("Ужин") and hasAnyAncestor(isDialog())).performClick()
+        compose.onNodeWithText("Только после еды").performClick()
+        compose.onNodeWithContentDescription("После еды: день 1").performClick()
+        compose.onNodeWithText("Сохранить").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("После еды: день 1").performClick()
+        compose.onNodeWithText("Сохранить").performClick()
+        compose.runOnIdle {
+            assertEquals("DINNER/NONE/AFTER", current.value.day1)
+            assertEquals(initial.day2, current.value.day2)
+            assertEquals(initial.day3, current.value.day3)
+        }
+        compose.onNodeWithContentDescription("Настроить день 2").performClick()
+        compose.onNode(hasContentDescription("Завтрак") and hasAnyAncestor(isDialog())).performClick()
+        compose.onNodeWithText("Отмена").performClick()
+        compose.runOnIdle { assertEquals(initial.day2, current.value.day2) }
+    }
     @Test fun glucoseCycleUsesSamePauseSwitchAndIntervalDialog() {
         var toggled = 0
         var saved: GlucoseCycle? = null

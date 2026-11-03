@@ -16,6 +16,9 @@ data class GlucoseCycle(
     @PrimaryKey val id: Int = 1, val active: Boolean = false, val startDate: String,
     val breakfastMinute: Int = 480, val lunchMinute: Int = 780, val dinnerMinute: Int = 1140,
     val afterMinutes: Int = 120,
+    @ColumnInfo(defaultValue = "'BREAKFAST/FASTING/AFTER'") val day1: String = "BREAKFAST/FASTING/AFTER",
+    @ColumnInfo(defaultValue = "'LUNCH/BEFORE/AFTER'") val day2: String = "LUNCH/BEFORE/AFTER",
+    @ColumnInfo(defaultValue = "'DINNER/BEFORE/AFTER'") val day3: String = "DINNER/BEFORE/AFTER",
 ) {
     fun day(date: LocalDate): Int? {
         val days = ChronoUnit.DAYS.between(LocalDate.parse(startDate), date)
@@ -31,7 +34,17 @@ data class GlucoseCycle(
         )
     }
     fun resume(date: LocalDate) = copy(active = true, startDate = date.toString())
-    fun valid() = listOf(breakfastMinute, lunchMinute, dinnerMinute).all { it in 0..1439 } && afterMinutes in 1..1440
+    fun configuration(day: Int) = CycleDay.parse(listOf(day1, day2, day3)[day - 1])
+    fun withDay(day: Int, value: CycleDay) = when (day) {
+        1 -> copy(day1 = value.encode())
+        2 -> copy(day2 = value.encode())
+        else -> copy(day3 = value.encode())
+    }
+    fun valid() = runCatching {
+        LocalDate.parse(startDate)
+        listOf(breakfastMinute, lunchMinute, dinnerMinute).all { it in 0..1439 } &&
+            afterMinutes in 1..1440 && (1..3).all { configuration(it) != null }
+    }.getOrDefault(false)
 }
 data class GlucoseTask(val key: String, val at: Long, val food: String, val meal: MealType, val mealId: String?)
 
@@ -39,7 +52,8 @@ object GlucoseCyclePlan {
     fun tasks(cycle: GlucoseCycle, date: LocalDate, meals: List<MealEvent>, zone: ZoneId): List<GlucoseTask> {
         require(cycle.valid())
         val day = cycle.day(date) ?: return emptyList()
-        val type = when (day) { 1 -> MealType.BREAKFAST; 2 -> MealType.LUNCH; else -> MealType.DINNER }
+        val configuration = cycle.configuration(day)!!
+        val type = configuration.meal
         val minute = when (type) {
             MealType.BREAKFAST -> cycle.breakfastMinute
             MealType.LUNCH -> cycle.lunchMinute
@@ -49,9 +63,9 @@ object GlucoseCyclePlan {
             Instant.ofEpochMilli(it.startedAt).atZone(zone).toLocalDate() == date }
             .minWithOrNull(compareBy<MealEvent> { it.startedAt }.thenBy { it.createdAt }.thenBy { it.id })
         return buildList {
-            add(GlucoseTask("$date-before", date.atStartOfDay().plusMinutes(minute.toLong()).atZone(zone).toInstant().minusSeconds(30 * 60).toEpochMilli(),
-                if (day == 1) "FASTING" else "BEFORE", type, null))
-            if (first != null) add(GlucoseTask("$date-after",
+            if (configuration.before != "NONE") add(GlucoseTask("$date-before", date.atStartOfDay().plusMinutes(minute.toLong()).atZone(zone).toInstant().minusSeconds(30 * 60).toEpochMilli(),
+                configuration.before, type, null))
+            if (configuration.after && first != null) add(GlucoseTask("$date-after",
                 Instant.ofEpochMilli(first.startedAt).plusSeconds(cycle.afterMinutes * 60L).toEpochMilli(),
                 "AFTER", type, first.id))
         }
