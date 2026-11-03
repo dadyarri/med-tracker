@@ -24,6 +24,11 @@ data class ReminderOccurrence(
     @ColumnInfo(defaultValue = "NULL") val mealEventId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val recordId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val completionSignature: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val medicationId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val regimenId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val versionId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val dose: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val unit: String? = null,
 ) {
     fun plan() = AlarmPlan(token, nextAt, endAt, true, AlarmStatus.valueOf(status), snoozes)
     fun withPlan(plan: AlarmPlan) = copy(nextAt = plan.nextAt, endAt = plan.endAt,
@@ -104,13 +109,15 @@ object ReminderSchedule {
             val prior = previous[row.key]
             if (prior?.status != "COMPLETED" && (prior == null || prior.revision != row.revision)) {
                 if (row.dueAt >= now) result[row.key] = row
-                else if (row.source == "GLUCOSE")
+                else if (row.source in listOf("GLUCOSE", "MEDICATION"))
                     result[row.key] = row.copy(status = "EXPIRED", nextAt = null)
             }
         }
         return result.values.map { row ->
             val candidate = wanted[row.key]?.takeIf { it.revision == row.revision }
-            if (candidate != null) row.copy(food = candidate.food, meal = candidate.meal, mealEventId = candidate.mealEventId)
+            if (candidate != null) row.copy(title = candidate.title, food = candidate.food, meal = candidate.meal, mealEventId = candidate.mealEventId,
+                medicationId = candidate.medicationId, regimenId = candidate.regimenId, versionId = candidate.versionId,
+                dose = candidate.dose, unit = candidate.unit)
             else row
         }
     }

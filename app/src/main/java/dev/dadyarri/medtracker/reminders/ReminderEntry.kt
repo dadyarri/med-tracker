@@ -10,6 +10,7 @@ import java.time.*
 import java.util.UUID
 
 internal val ReminderOccurrence.entryType: JournalType? get() = when (source) {
+    "MEDICATION" -> JournalType.MEDICATION
     "PRESSURE" -> JournalType.PRESSURE
     "WEIGHT" -> JournalType.WEIGHT
     "GLUCOSE" -> JournalType.GLUCOSE
@@ -17,12 +18,14 @@ internal val ReminderOccurrence.entryType: JournalType? get() = when (source) {
     else -> null
 }
 internal val ReminderOccurrence.icon: Int get() = when (entryType) {
+    JournalType.MEDICATION -> R.drawable.ic_medication
     JournalType.PRESSURE -> R.drawable.ic_blood_pressure
     JournalType.WEIGHT -> R.drawable.ic_weight
     JournalType.GLUCOSE -> R.drawable.ic_glucose
     else -> R.drawable.ic_meal
 }
 internal val ReminderOccurrence.entryLabel: String get() = when (entryType) {
+    JournalType.MEDICATION -> "Записать приём"
     JournalType.PRESSURE -> "Записать давление"
     JournalType.WEIGHT -> "Записать вес"
     JournalType.GLUCOSE -> "Записать глюкозу"

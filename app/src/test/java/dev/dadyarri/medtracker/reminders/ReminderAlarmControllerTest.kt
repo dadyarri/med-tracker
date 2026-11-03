@@ -4,7 +4,9 @@ import android.app.*
 import android.content.Context
 import androidx.room.Room
 import dev.dadyarri.medtracker.alarm.*
+import dev.dadyarri.medtracker.medications.*
 import dev.dadyarri.medtracker.meals.*
+import dev.dadyarri.medtracker.measurements.JournalType
 import dev.dadyarri.medtracker.measurements.MealType
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
@@ -47,6 +49,70 @@ class ReminderAlarmControllerTest {
         db.reminders().save(rows.map { if (it.key in firstPerSource) it.copy(nextAt = now) else it })
         controller.deliver(now)
         return db.reminders().all().filter { it.status == "RINGING" }
+    }
+    private suspend fun prescribeMedication(mode: String = "ONCE"): MedicationService {
+        val service = MedicationService(db)
+        val now = System.currentTimeMillis()
+        val regimen = MedicationRegimen("drug-r", "drug", if (mode == "ONCE") "ONCE" else "CONTINUOUS",
+            now - 60_000, createdAt = now)
+        val version = RegimenVersion("drug-v", regimen.id, regimen.startsAt, "0.5", "табл.", mode,
+            anchorDate = LocalDate.now().toString(), onceAt = now + 3_600_000)
+        service.saveWithRegimen(Medication("drug", "Препарат"), regimen, version)
+        return service
+    }
+    @Test fun medicationChangesRegisterOneNativeAlarmAndArchiveCancelsItWithoutUi() = runBlocking {
+        controller.start()
+        val service = prescribeMedication()
+        kotlinx.coroutines.withTimeout(5_000) {
+            while (Shadows.shadowOf(manager).scheduledAlarms.isEmpty()) kotlinx.coroutines.delay(10)
+        }
+        val row = db.reminders().all().single { it.source == "MEDICATION" }
+        assertEquals("drug-r", row.regimenId)
+        assertEquals(JournalType.MEDICATION, row.entryType)
+        repeat(3) { controller.reconcile() }
+        assertEquals(1, Shadows.shadowOf(manager).scheduledAlarms.size)
+        controller.changeJournal { service.archive("drug", true) }
+        assertTrue(Shadows.shadowOf(manager).scheduledAlarms.isEmpty())
+        assertTrue(db.reminders().all().none { it.active })
+    }
+    @Test fun explicitMedicationIntakeIsAtomicAndDeletingItRestoresOnlyFutureSignal() = runBlocking {
+        val service = prescribeMedication()
+        controller.reconcile()
+        val row = db.reminders().all().single { it.source == "MEDICATION" }
+        val fact = MedicationIntake(row.entryId, "drug", "drug-r", "drug-v", "0.25", "табл.",
+            System.currentTimeMillis(), 0, 0)
+        controller.saveEntry(row.key, row.revision) {
+            service.saveIntake(fact, false)
+            fact.id
+        }
+        assertEquals("COMPLETED", db.reminders().all().single { it.key == row.key }.status)
+        assertTrue(Shadows.shadowOf(manager).scheduledAlarms.isEmpty())
+        assertEquals("0.25", db.medications().intake(fact.id)!!.dose)
+        controller.changeJournal { service.deleteIntake(fact.id) }
+        assertEquals("WAITING", db.reminders().all().single { it.key == row.key }.status)
+        assertEquals(row.dueAt, manager.nextAlarmClock.triggerTime)
+    }
+    @Test fun finishingAssignmentStopsAnAlreadyRingingMedicationAndItsRepeat() = runBlocking {
+        val service = prescribeMedication()
+        controller.reconcile()
+        val row = db.reminders().all().single { it.source == "MEDICATION" }
+        db.reminders().save(listOf(row.copy(status = "RINGING", token = "session",
+            dueAt = System.currentTimeMillis() - 1_000, nextAt = System.currentTimeMillis() + 900_000)))
+        controller.changeJournal { service.finish("drug-r") }
+        assertEquals("CANCELLED", db.reminders().all().single { it.key == row.key }.status)
+        assertTrue(Shadows.shadowOf(manager).scheduledAlarms.isEmpty())
+    }
+    @Test fun intervalFirstSignalRequiresFactAndUsesItsActualTime() = runBlocking {
+        val service = prescribeMedication("HOURS")
+        controller.reconcile()
+        assertTrue(Shadows.shadowOf(manager).scheduledAlarms.isEmpty())
+        val taken = System.currentTimeMillis()
+        controller.changeJournal {
+            service.saveIntake(MedicationIntake("actual", "drug", "drug-r", "drug-v", "0.5", "табл.", taken, 0, 0), false)
+        }
+        assertEquals(taken + 8 * 3_600_000L, manager.nextAlarmClock.triggerTime)
+        controller.changeJournal { service.finish("drug-r") }
+        assertTrue(Shadows.shadowOf(manager).scheduledAlarms.isEmpty())
     }
     @Test fun enableReplacePauseResumeAndRepeatedReconcileKeepOneAlarm() = runBlocking {
         enable(); repeat(3) { controller.reconcile() }

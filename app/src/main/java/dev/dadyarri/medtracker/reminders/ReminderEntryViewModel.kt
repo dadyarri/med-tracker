@@ -12,6 +12,7 @@ class ReminderEntryViewModel(private val db: AlarmDatabase, private val controll
     val busy = MutableStateFlow(false)
     val error = MutableStateFlow<String?>(null)
     val meals = db.meals().observe()
+    val medications = db.medications().medications()
 
     fun savePressure(row: ReminderOccurrence, draft: PressureDraft, done: () -> Unit) {
         draft.error()?.let { error.value = it; return }
@@ -46,6 +47,14 @@ class ReminderEntryViewModel(private val db: AlarmDatabase, private val controll
         val now = System.currentTimeMillis()
         val id = current.entryId
         check(db.meals().insert(meal.copy(id = id, createdAt = now, updatedAt = now)) != -1L)
+        id
+    }
+    fun saveIntake(row: ReminderOccurrence, intake: dev.dadyarri.medtracker.medications.MedicationIntake, done: () -> Unit) = save(row, done) { current ->
+        check(current.entryType == JournalType.MEDICATION && intake.medicationId == current.medicationId &&
+            intake.regimenId == current.regimenId && intake.unit == current.unit)
+        val id = current.entryId
+        dev.dadyarri.medtracker.medications.MedicationService(db).saveIntake(intake.copy(id = id), false)
+        check(db.medications().intake(id)?.versionId == current.versionId)
         id
     }
     private fun save(row: ReminderOccurrence, done: () -> Unit, write: suspend (ReminderOccurrence) -> String) {

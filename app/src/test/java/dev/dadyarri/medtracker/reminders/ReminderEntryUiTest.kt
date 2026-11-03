@@ -70,6 +70,44 @@ class ReminderEntryUiTest {
             assertEquals(record.id, db.reminders().all().single().recordId)
         } finally { controller.scope.cancel(); db.close() }
     }
+    @Test fun medicationFormPrefillsScheduledDoseAndCommitsPartialActualDose() = runBlocking {
+        val context = RuntimeEnvironment.getApplication()
+        val db = Room.inMemoryDatabaseBuilder(context, AlarmDatabase::class.java).allowMainThreadQueries().build()
+        val store = ReminderSettingsStore(context)
+        store.settings.first().forEach { store.save(it.copy(paused = true)) }
+        val controller = ReminderAlarmController(context, db, store)
+        val model = ReminderEntryViewModel(db, controller)
+        ShadowAlarmManager.setCanScheduleExactAlarms(true)
+        val now = System.currentTimeMillis()
+        val service = dev.dadyarri.medtracker.medications.MedicationService(db)
+        val regimen = dev.dadyarri.medtracker.medications.MedicationRegimen("r", "m", "ONCE", now - 60_000, createdAt = now)
+        service.saveWithRegimen(dev.dadyarri.medtracker.medications.Medication("m", "Препарат"), regimen,
+            dev.dadyarri.medtracker.medications.RegimenVersion("v", "r", regimen.startsAt, "0.5", "табл.", "ONCE",
+                anchorDate = java.time.LocalDate.now().toString(), onceAt = now + 3_600_000))
+        controller.reconcile()
+        val row = db.reminders().all().single { it.source == "MEDICATION" }
+        var closed = 0
+        try {
+            compose.setContent { MaterialTheme { ReminderEntrySheet(ReminderEntryRequest(row.key, row.revision, null),
+                listOf(row), { closed++ }, model) } }
+            compose.waitUntil(5_000) {
+                compose.onAllNodesWithContentDescription("Доза · табл.").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithContentDescription("Доза · табл.").assertTextContains("0,5").performTextReplacement("0,25")
+            compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+            compose.waitUntil(5_000) {
+                Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+                (closed == 1 && !model.busy.value) || model.error.value != null
+            }
+            assertNull(model.error.value)
+            assertEquals(1, closed)
+            val fact = db.medications().intakes().first().single()
+            assertEquals("0.25", fact.dose)
+            assertEquals("r", fact.regimenId); assertEquals("v", fact.versionId)
+            assertEquals("COMPLETED", db.reminders().all().single { it.key == row.key }.status)
+            assertEquals(fact.id, db.reminders().all().single { it.key == row.key }.recordId)
+        } finally { controller.scope.cancel(); db.close() }
+    }
     @Test fun plannedCardHasDistinctLabelAndOpensOnTap() {
         val now = System.currentTimeMillis()
         val row = ReminderOccurrence("weight", "WEIGHT", "r", "Вес", now, now, now + 7_200_000)

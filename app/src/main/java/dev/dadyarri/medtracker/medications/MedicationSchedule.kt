@@ -11,9 +11,38 @@ data class MedicationTask(val key: String, val regimenId: String, val versionId:
 
 /** Pure calendar calculation. No synthetic intake is ever used as an interval anchor. */
 object MedicationSchedule {
+    /** Find the next sparse/future assignment without materializing years of daily occurrences. */
+    fun next(regimen: MedicationRegimen, versions: List<RegimenVersion>, intakes: List<MedicationIntake>,
+             meals: List<MealEvent>, settings: List<ReminderSetting>, now: Instant, zone: ZoneId): MedicationTask? {
+        val history = versions.filter { it.regimenId == regimen.id }
+        return history.flatMap { version ->
+            val lower = maxOf(now.toEpochMilli(), regimen.startsAt, version.effectiveAt)
+            val lowerDate = Instant.ofEpochMilli(lower).atZone(zone).toLocalDate()
+            val dates = when (ScheduleMode.valueOf(version.mode)) {
+                ScheduleMode.PRN -> emptyList()
+                ScheduleMode.ONCE -> listOfNotNull(version.onceAt?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() })
+                ScheduleMode.HOURS -> listOfNotNull(intakes.filter { it.regimenId == regimen.id && it.takenAt <= now.toEpochMilli() }
+                    .maxOfOrNull { it.takenAt }?.let { Instant.ofEpochMilli(it + version.everyHours * 3_600_000L).atZone(zone).toLocalDate() })
+                ScheduleMode.DAYS -> {
+                    val anchor = LocalDate.parse(version.anchorDate)
+                    val base = maxOf(lowerDate.minusDays(1), anchor)
+                    val elapsed = ChronoUnit.DAYS.between(anchor, base)
+                    val date = base.plusDays(Math.floorMod(-elapsed, version.everyDays.toLong()))
+                    (0L..2L).map { date.plusDays(it * version.everyDays) }
+                }
+                else -> listOf(lowerDate)
+            }
+            dates.flatMap { date ->
+                val from = maxOf(now, date.minusDays(1).atStartOfDay(zone).toInstant())
+                val until = date.plusDays(9).atStartOfDay(zone).toInstant()
+                if (until <= from) emptyList() else tasks(regimen, versions, intakes, meals, settings, from, until, zone, asOf = now)
+                    .filter { it.versionId == version.id }
+            }
+        }.minWithOrNull(compareBy<MedicationTask> { it.at }.thenBy { it.key })
+    }
     fun tasks(regimen: MedicationRegimen, versions: List<RegimenVersion>, intakes: List<MedicationIntake>,
               meals: List<MealEvent>, settings: List<ReminderSetting>, from: Instant, until: Instant,
-              zone: ZoneId): List<MedicationTask> {
+              zone: ZoneId, asOf: Instant = from): List<MedicationTask> {
         require(until > from && Duration.between(from, until).toDays() <= 370)
         val history = versions.filter { it.regimenId == regimen.id }.sortedBy { it.effectiveAt }
         val output = mutableListOf<MedicationTask>()
@@ -26,7 +55,7 @@ object MedicationSchedule {
             when (ScheduleMode.valueOf(version.mode)) {
                 ScheduleMode.PRN -> Unit
                 ScheduleMode.HOURS -> {
-                    val last = intakes.filter { it.regimenId == regimen.id && it.takenAt <= from.toEpochMilli() }
+                    val last = intakes.filter { it.regimenId == regimen.id && it.takenAt <= asOf.toEpochMilli() }
                         .maxWithOrNull(compareBy<MedicationIntake> { it.takenAt }.thenBy { it.id })
                     if (last != null) add(Math.addExact(last.takenAt, version.everyHours * 3_600_000L), version, "interval/${last.id}")
                 }

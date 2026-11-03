@@ -20,9 +20,11 @@ import java.time.*
 @Composable
 internal fun RegimenEditor(medication: Medication, existing: MedicationRegimen?, initial: RegimenVersion?,
                            busy: Boolean, error: String?, repeatFrom: MedicationRegimen? = null, onSave: (MedicationRegimen, RegimenVersion) -> Unit,
-                           onClose: () -> Unit) {
+                           onClose: () -> Unit, embedded: Boolean = false,
+                           onDraftChange: ((MedicationRegimen, RegimenVersion, Boolean) -> Unit)? = null) {
     val zone = ZoneId.systemDefault()
     val today = LocalDate.now()
+    val createdAt = rememberSaveable { System.currentTimeMillis() }
     val newId = rememberSaveable { medicationId() }
     val versionId = rememberSaveable { medicationId() }
     var kind by rememberSaveable { mutableStateOf(existing?.kind ?: repeatFrom?.kind ?: "CONTINUOUS") }
@@ -53,7 +55,7 @@ internal fun RegimenEditor(medication: Medication, existing: MedicationRegimen?,
     val startDate = Instant.ofEpochMilli(start).atZone(zone).toLocalDate()
     val endExclusive = Instant.ofEpochMilli(end).atZone(zone).toLocalDate().plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
     val regimen = existing ?: MedicationRegimen(newId, medication.id, kind, start,
-        if (kind == "COURSE") endExclusive else null, createdAt = System.currentTimeMillis())
+        if (kind == "COURSE") endExclusive else null, createdAt = createdAt)
     val version = RegimenVersion(versionId, regimen.id, start, dose, medication.unit, mode.name,
         minutes, weekdays, everyDays.toIntOrNull() ?: 0, everyHours.toIntOrNull() ?: 0,
         if (existing != null) initial?.anchorDate ?: startDate.toString() else startDate.toString(),
@@ -62,10 +64,13 @@ internal fun RegimenEditor(medication: Medication, existing: MedicationRegimen?,
         times.isNotEmpty() && weekdays.isNotBlank() && offsetMinutes.toIntOrNull() in 0..1440 &&
         (kind != "COURSE" || endExclusive > start) &&
         (mode != ScheduleMode.ONCE || once >= start)
-    Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
+    SideEffect { onDraftChange?.invoke(regimen, version, valid) }
+    Column(if (embedded) Modifier.fillMaxWidth() else Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(if (existing == null) "Назначение" else "Новая версия схемы", style = MaterialTheme.typography.headlineSmall)
-        Text(medication.name, style = MaterialTheme.typography.titleMedium)
+        if (!embedded) {
+            Text(if (existing == null) "Назначение" else "Новая версия схемы", style = MaterialTheme.typography.headlineSmall)
+            Text(medication.name, style = MaterialTheme.typography.titleMedium)
+        }
         if (existing == null) MedicationChoice(RegimenKind.valueOf(kind), RegimenKind.entries, { it.label }, !busy) { kind = it.name }
         MedicationNumber("Доза · ${medication.unit}", dose, !busy) { dose = it }
         Text(if (existing == null) "Начало" else "Вступает в силу", style = MaterialTheme.typography.labelMedium)
@@ -141,9 +146,11 @@ internal fun RegimenEditor(medication: Medication, existing: MedicationRegimen?,
                 MedicationNumber("Минут", offsetMinutes, !busy) { offsetMinutes = it }
             }
         }
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = { onSave(regimen, version) }, enabled = !busy && valid, modifier = Modifier.fillMaxWidth()) { Text("Сохранить") }
-        TextButton(onClick = onClose, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Закрыть") }
+        if (!embedded) {
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            Button(onClick = { onSave(regimen, version) }, enabled = !busy && valid, modifier = Modifier.fillMaxWidth()) { Text("Сохранить") }
+            TextButton(onClick = onClose, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Закрыть") }
+        }
     }
     timeTarget?.let { target ->
         val value = target.takeIf { it >= 0 } ?: 480

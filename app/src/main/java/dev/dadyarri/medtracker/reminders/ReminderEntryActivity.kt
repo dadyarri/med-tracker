@@ -55,6 +55,7 @@ internal fun ReminderEntrySheet(request: ReminderEntryRequest, rows: List<Remind
     val busy by model.busy.collectAsStateWithLifecycle()
     val error by model.error.collectAsStateWithLifecycle()
     val meals by model.meals.collectAsStateWithLifecycle(initialValue = emptyList())
+    val medications by model.medications.collectAsStateWithLifecycle(initialValue = emptyList())
     var selected by rememberSaveable(request.key, request.revision, request.token) { mutableStateOf(request.key) }
     val candidates = rows.orEmpty().filter(request::accepts)
     val row = candidates.find { it.key == selected } ?: candidates.singleOrNull()
@@ -95,7 +96,16 @@ internal fun ReminderEntrySheet(request: ReminderEntryRequest, rows: List<Remind
                         false, busy, error, { model.saveMeasurement(row, it, saved) }, {}, close, meals)
                     JournalType.MEAL -> MealEditor(MealEvent(row.entryId, row.meal ?: row.source, now, now, now),
                         busy, { model.saveMeal(row, it, saved) }, {}, editing = false, onClose = close, error = error)
-                    JournalType.MEDICATION, null -> Text("Тип записи недоступен", modifier = Modifier.padding(24.dp))
+                    JournalType.MEDICATION -> {
+                        val medication = medications.find { it.id == row.medicationId }
+                        if (medication != null && row.dose != null && row.unit != null) {
+                            val intake = dev.dadyarri.medtracker.medications.MedicationIntake(row.entryId, medication.id,
+                                row.regimenId, row.versionId, row.dose, row.unit, now, 0, 0)
+                            dev.dadyarri.medtracker.medications.IntakeEditor(medication, intake, false, emptyList(), busy, error,
+                                { model.saveIntake(row, it, saved) }, {}, close)
+                        } else Text("Загрузка препарата…", Modifier.padding(24.dp))
+                    }
+                    null -> Text("Тип записи недоступен", modifier = Modifier.padding(24.dp))
                 }
             }
         }

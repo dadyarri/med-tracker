@@ -42,6 +42,19 @@ class MedicationServiceTest {
         assertNull(doseValue("0")); assertNull(doseValue("-1")); assertNull(doseValue("1e3"))
         assertEquals("2.5", doseValue("2,500"))
     }
+    @Test fun creatingMedicationAndOptionalRegimenIsAtomic() = runBlocking {
+        val drug = medication.copy(id = "atomic")
+        val course = regimen.copy(id = "atomic-r", medicationId = drug.id)
+        val snapshot = version.copy(id = "atomic-v", regimenId = course.id)
+        rejected { service.saveWithRegimen(drug, course, snapshot.copy(unit = "мл")) }
+        assertNull(db.medications().medication(drug.id))
+        assertNull(db.medications().regimen(course.id))
+        service.saveWithRegimen(drug, course, snapshot)
+        assertEquals(course, db.medications().regimen(course.id))
+        assertEquals(snapshot, db.medications().versions().first().single { it.id == snapshot.id })
+        service.saveWithRegimen(drug.copy(id = "without"), null, null)
+        assertNotNull(db.medications().medication("without"))
+    }
     @Test fun allAppearanceKindsRoundTripAndOnlyTabletsHaveScores() = runBlocking {
         for (shape in PillShape.entries) {
             val value = medication.copy(id = "shape_${shape.name}", shape = shape.name,

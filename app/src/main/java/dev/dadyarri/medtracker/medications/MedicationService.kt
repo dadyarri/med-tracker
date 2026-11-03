@@ -24,6 +24,14 @@ class MedicationService(private val db: AlarmDatabase) {
             createdAt = old?.createdAt ?: now, updatedAt = now)
         if (old == null) dao.insert(value) else check(dao.update(value) == 1)
     }
+    suspend fun saveWithRegimen(medication: Medication, regimen: MedicationRegimen?, version: RegimenVersion?) = db.withTransaction {
+        require((regimen == null) == (version == null))
+        save(medication)
+        if (regimen != null && version != null) {
+            require(regimen.medicationId == medication.id)
+            prescribe(regimen, version)
+        }
+    }
     suspend fun archive(id: String, archived: Boolean) = db.withTransaction {
         val old = dao.medication(id) ?: error("Missing medication")
         if (archived) {

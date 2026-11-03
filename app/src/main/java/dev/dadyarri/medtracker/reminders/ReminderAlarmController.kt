@@ -3,6 +3,7 @@ package dev.dadyarri.medtracker.reminders
 import android.app.*
 import android.content.*
 import androidx.room.withTransaction
+import dev.dadyarri.medtracker.medications.*
 import dev.dadyarri.medtracker.MainActivity
 import dev.dadyarri.medtracker.alarm.*
 import kotlinx.coroutines.*
@@ -25,7 +26,9 @@ class ReminderAlarmController(private val context: Context, private val db: Alar
     fun start() {
         if (observation != null) return
         observation = scope.launch {
-            combine(store.settings, db.meals().cycle(), db.meals().observe(), db.measurements().glucose()) { _, _, _, _ -> Unit }
+            val measurements = combine(store.settings, db.meals().cycle(), db.meals().observe(), db.measurements().glucose()) { _, _, _, _ -> Unit }
+            combine(measurements, db.medications().medications(), db.medications().regimens(),
+                db.medications().versions(), db.medications().intakes()) { _, _, _, _, _ -> Unit }
                 .collect { try { reconcile() } catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { message.value = "Не удалось обновить будильники. Вернитесь в приложение." } }
         }
@@ -35,11 +38,18 @@ class ReminderAlarmController(private val context: Context, private val db: Alar
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
     private suspend fun refreshRows(recovery: Boolean = false): List<ReminderOccurrence> {
-        val desired = ReminderSchedule.desired(store.settings.first(), db.meals().cycle().first(),
-            db.meals().observe().first(), Instant.ofEpochMilli(now()), ZoneId.systemDefault())
+        val time = now()
+        val settings = store.settings.first()
+        val meals = db.meals().observe().first()
+        val drugs = MedicationData(db.medications().medications().first(), db.medications().regimens().first(),
+            db.medications().versions().first(), db.medications().intakes().first())
+        val desired = ReminderSchedule.desired(settings, db.meals().cycle().first(), meals,
+            Instant.ofEpochMilli(time), ZoneId.systemDefault()) +
+            MedicationReminders.desired(drugs, meals, settings, Instant.ofEpochMilli(time), ZoneId.systemDefault())
         val merged = ReminderSchedule.merge(dao.all(), desired, now(), recovery)
-        val rows = dev.dadyarri.medtracker.meals.GlucoseTaskMatcher.reconcile(merged, desired,
-            db.measurements().glucose().first(), db.meals().observe().first(), now())
+        val glucoseRows = dev.dadyarri.medtracker.meals.GlucoseTaskMatcher.reconcile(merged, desired,
+            db.measurements().glucose().first(), meals, time)
+        val rows = MedicationReminders.reconcile(glucoseRows, desired, drugs.intakes, time)
         dao.save(rows)
         return rows
     }
@@ -104,9 +114,11 @@ class ReminderAlarmController(private val context: Context, private val db: Alar
             val row = dao.all().find { it.key == key && it.revision == revision && it.canRecord }
                 ?: error("Reminder no longer available")
             val recordId = write(row)
-            val signature = if (row.source == "GLUCOSE") db.measurements().glucose(recordId)?.let {
-                dev.dadyarri.medtracker.meals.GlucoseTaskMatcher.signature(it)
-            } else null
+            val signature = when (row.source) {
+                "GLUCOSE" -> db.measurements().glucose(recordId)?.let { dev.dadyarri.medtracker.meals.GlucoseTaskMatcher.signature(it) }
+                "MEDICATION" -> db.medications().intake(recordId)?.let(MedicationReminders::signature)
+                else -> null
+            }
             dao.save(listOf(row.copy(status = "COMPLETED", nextAt = null, recordId = recordId, completionSignature = signature)))
         }
         val rows = db.withTransaction { refreshRows() }

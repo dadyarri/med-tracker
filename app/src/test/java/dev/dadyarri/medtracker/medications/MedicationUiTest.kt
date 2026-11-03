@@ -39,6 +39,24 @@ class MedicationUiTest {
         compose.onNodeWithContentDescription("В архив").performClick()
         compose.runOnIdle { assertEquals(1, archived); assertEquals(1, opened) }
     }
+    @Test fun newMedicationIncludesOptionalRegimenInOneForm() {
+        var saved: Triple<Medication, MedicationRegimen?, RegimenVersion?>? = null
+        compose.setContent { MaterialTheme {
+            MedicationEditor(Medication("new"), false, null, {}, {},
+                onSaveWithRegimen = { drug, regimen, version -> saved = Triple(drug, regimen, version) })
+        } }
+        compose.onNodeWithText("Название").performTextInput("Препарат")
+        compose.onNodeWithContentDescription("Добавить назначение").performScrollTo().performClick()
+        compose.onNodeWithText("Каждый день").performScrollTo().assertExists()
+        compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+        compose.runOnIdle {
+            val result = requireNotNull(saved)
+            assertEquals("new", result.first.id)
+            assertEquals("new", result.second!!.medicationId)
+            assertEquals(result.second!!.id, result.third!!.regimenId)
+            assertEquals("DAILY", result.third!!.mode)
+        }
+    }
     @Test fun medicationListOpensIntakeAndRegimensWithoutDetailScreen() {
         val app = org.robolectric.RuntimeEnvironment.getApplication()
         val db = androidx.room.Room.inMemoryDatabaseBuilder(app, dev.dadyarri.medtracker.alarm.AlarmDatabase::class.java)

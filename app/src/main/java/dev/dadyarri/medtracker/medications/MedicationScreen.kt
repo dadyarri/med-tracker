@@ -73,7 +73,9 @@ fun MedicationScreen(model: MedicationViewModel) {
             key(sheet, editorId, regimenId, selected) {
                 when (sheet) {
                     "medication" -> MedicationEditor(content.medications.find { it.id == editorId } ?: Medication(id = editorId),
-                        busy, error, { value -> model.save(value, ::close) }, ::close)
+                        busy, error, { value -> model.save(value, ::close) }, ::close,
+                        onSaveWithRegimen = if (content.medications.none { it.id == editorId })
+                            { drug, regimen, version -> model.saveWithRegimen(drug, regimen, version, ::close) } else null)
                     "regimens" -> if (medication != null) {
                         LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(24.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -94,8 +96,8 @@ fun MedicationScreen(model: MedicationViewModel) {
                                     ?: content.versions.filter { it.regimenId == regimen.id }.minByOrNull { it.effectiveAt }
                                 if (version != null) {
                                     val finished = regimen.endsAt?.let { it <= now } == true || regimen.completedAt?.let { it <= now } == true
-                                    val next = MedicationSchedule.tasks(regimen, content.versions, content.intakes, meals, settings,
-                                        Instant.ofEpochMilli(now), Instant.ofEpochMilli(now).plusSeconds(8 * 86400L), ZoneId.systemDefault()).firstOrNull()
+                                    val next = MedicationSchedule.next(regimen, content.versions, content.intakes, meals, settings,
+                                        Instant.ofEpochMilli(now), ZoneId.systemDefault())
                                     RegimenCard(regimen, version, next, content.versions.filter { it.regimenId == regimen.id },
                                         finished, busy || medication.archived,
                                         onTake = { intake(medication, regimen, version) },

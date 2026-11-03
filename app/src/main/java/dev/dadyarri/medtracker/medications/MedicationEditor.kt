@@ -17,7 +17,10 @@ import dev.dadyarri.medtracker.R
 
 @Composable
 internal fun MedicationEditor(initial: Medication, busy: Boolean, error: String?,
-                              onSave: (Medication) -> Unit, onClose: () -> Unit) {
+                              onSave: (Medication) -> Unit, onClose: () -> Unit,
+                              onSaveWithRegimen: ((Medication, MedicationRegimen?, RegimenVersion?) -> Unit)? = null) {
+    var includeRegimen by rememberSaveable(initial.id) { mutableStateOf(false) }
+    var regimenDraft by remember { mutableStateOf<Triple<MedicationRegimen, RegimenVersion, Boolean>?>(null) }
     var name by rememberSaveable(initial.id) { mutableStateOf(initial.name) }
     var strength by rememberSaveable(initial.id) { mutableStateOf(initial.strength) }
     var unit by rememberSaveable(initial.id) { mutableStateOf(initial.unit) }
@@ -81,8 +84,24 @@ internal fun MedicationEditor(initial: Medication, busy: Boolean, error: String?
         }
         if (detail) TextField(instruction, { instruction = it }, label = { Text("Инструкция") }, enabled = !busy,
             shape = MaterialTheme.shapes.large, colors = fieldColors, modifier = Modifier.fillMaxWidth())
+        if (onSaveWithRegimen != null) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(painterResource(R.drawable.ic_calendar), null, Modifier.size(24.dp))
+                Spacer(Modifier.width(12.dp))
+                Text("Назначение", Modifier.weight(1f))
+                Switch(includeRegimen, { includeRegimen = it }, enabled = !busy,
+                    modifier = Modifier.semantics { contentDescription = "Добавить назначение" })
+            }
+            if (includeRegimen) RegimenEditor(value, null, null, busy, null, onSave = { _, _ -> }, onClose = {},
+                embedded = true, onDraftChange = { regimen, version, valid -> regimenDraft = Triple(regimen, version, valid) })
+        }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = { onSave(value) }, enabled = !busy && name.isNotBlank() && unit.isNotBlank() && doseValue(dose) != null,
+        Button(onClick = {
+            if (onSaveWithRegimen != null) onSaveWithRegimen(value,
+                regimenDraft?.first.takeIf { includeRegimen }, regimenDraft?.second.takeIf { includeRegimen })
+            else onSave(value)
+        }, enabled = !busy && name.isNotBlank() && unit.isNotBlank() && doseValue(dose) != null &&
+            (!includeRegimen || regimenDraft?.third == true),
             modifier = Modifier.fillMaxWidth()) { Text("Сохранить") }
         TextButton(onClick = onClose, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Закрыть") }
     }

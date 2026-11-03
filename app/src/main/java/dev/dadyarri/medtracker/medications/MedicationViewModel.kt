@@ -7,7 +7,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 class MedicationViewModel(db: AlarmDatabase, private val service: MedicationService,
-                          store: dev.dadyarri.medtracker.reminders.ReminderSettingsStore) : ViewModel() {
+                          store: dev.dadyarri.medtracker.reminders.ReminderSettingsStore,
+                          private val scheduler: dev.dadyarri.medtracker.reminders.ReminderAlarmController? = null) : ViewModel() {
     val meals = db.meals().observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val mealSettings = store.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val error = MutableStateFlow<String?>(null)
@@ -18,6 +19,8 @@ class MedicationViewModel(db: AlarmDatabase, private val service: MedicationServ
     }.catch { error.value = "Не удалось загрузить лекарства."; emit(MedicationData()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     fun save(value: Medication, done: () -> Unit) = execute(done) { service.save(value) }
+    fun saveWithRegimen(value: Medication, regimen: MedicationRegimen?, version: RegimenVersion?, done: () -> Unit) =
+        execute(done) { service.saveWithRegimen(value, regimen, version) }
     fun archive(value: Medication, done: () -> Unit) = execute(done) { service.archive(value.id, !value.archived) }
     fun prescribe(regimen: MedicationRegimen, version: RegimenVersion, done: () -> Unit) =
         execute(done) { service.prescribe(regimen, version) }
@@ -30,7 +33,10 @@ class MedicationViewModel(db: AlarmDatabase, private val service: MedicationServ
         if (busy.value) return
         busy.value = true; error.value = null
         viewModelScope.launch {
-            try { operation(); done() }
+            try {
+                if (scheduler != null) scheduler.changeJournal(operation) else operation()
+                done()
+            }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { error.value = "Не удалось сохранить. Проверьте дозу, единицы и даты." }
             finally { busy.value = false }
