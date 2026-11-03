@@ -8,6 +8,23 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 class MeasurementTest {
+    @Test fun medicationIntakesUseTakenAtAndFollowHistoryPeriodAndTypeFilters() {
+        val zone = ZoneId.of("Europe/Moscow")
+        val day = LocalDate.of(2026, 11, 3)
+        val start = day.atStartOfDay(zone).toInstant().toEpochMilli()
+        val drug = dev.dadyarri.medtracker.medications.Medication("m", "Препарат", archived = true)
+        fun intake(id: String, at: Long) = JournalEntry.Intake(
+            dev.dadyarri.medtracker.medications.MedicationIntake(id, drug.id, dose = "0.5", unit = "табл.",
+                takenAt = at, createdAt = start + 999_000, updatedAt = start + 999_000), drug)
+        val records = listOf(intake("before", start - 1), intake("today", start + 45_123),
+            intake("tomorrow", day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()))
+        val selected = HistoryFilter(JournalType.MEDICATION, day, day).apply(records, zone)
+        assertEquals(listOf("today"), selected.map { it.id })
+        assertEquals(start + 45_123, selected.single().at)
+        assertEquals("MEDICATION_today", selected.single().key)
+        assertTrue(HistoryFilter(type = JournalType.PRESSURE).apply(records).isEmpty())
+        assertTrue(measurementSeries(selected, GlucoseUnit.MMOL).isEmpty())
+    }
     @Test fun originalSecondsSurviveAndChronologyUsesThem() {
         val base = java.time.LocalDateTime.of(2026, 11, 3, 8, 45).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val exact = base + 45_123

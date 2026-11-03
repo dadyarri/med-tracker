@@ -39,6 +39,57 @@ class MedicationUiTest {
         compose.onNodeWithContentDescription("В архив").performClick()
         compose.runOnIdle { assertEquals(1, archived); assertEquals(1, opened) }
     }
+    @Test fun medicationListOpensIntakeAndRegimensWithoutDetailScreen() {
+        val app = org.robolectric.RuntimeEnvironment.getApplication()
+        val db = androidx.room.Room.inMemoryDatabaseBuilder(app, dev.dadyarri.medtracker.alarm.AlarmDatabase::class.java)
+            .allowMainThreadQueries().build()
+        val service = MedicationService(db)
+        kotlinx.coroutines.runBlocking { service.save(Medication("m", "Препарат")) }
+        val model = MedicationViewModel(db, service, dev.dadyarri.medtracker.reminders.ReminderSettingsStore(app))
+        val store = androidx.lifecycle.ViewModelStore().apply { put("medications", model) }
+        val visible = androidx.compose.runtime.mutableStateOf(true)
+        try {
+            compose.setContent { MaterialTheme { if (visible.value) MedicationScreen(model) } }
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("Препарат").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNode(hasClickAction() and hasText("Препарат")).performClick()
+            compose.onNodeWithContentDescription("Доза · табл.").assertExists()
+            compose.onNodeWithText("Назад").assertDoesNotExist()
+            compose.onNodeWithText("Приёмы").assertDoesNotExist()
+            compose.onNodeWithText("Закрыть").performScrollTo().performClick()
+            compose.onNode(hasClickAction() and hasText("Препарат")).performTouchInput { swipeLeft() }
+            compose.onNodeWithContentDescription("Назначения").performClick()
+            compose.onNodeWithText("Добавить назначение").assertIsDisplayed().performClick()
+            compose.onNodeWithText("Назначение").assertExists()
+            compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+            compose.waitUntil(5_000) {
+                compose.waitForIdle()
+                check(model.error.value == null) { model.error.value.orEmpty() }
+                !model.busy.value && model.data.value?.regimens?.size == 1
+            }
+            compose.onNodeWithText("Добавить препарат").assertIsDisplayed()
+            compose.onNodeWithText("Назад").assertDoesNotExist()
+            compose.onNodeWithText("Приёмы").assertDoesNotExist()
+            compose.onNode(hasClickAction() and hasText("Препарат")).performTouchInput { swipeLeft() }
+            compose.onNodeWithContentDescription("Назначения").performClick()
+            compose.onNodeWithText("Схема").performScrollTo().assertIsDisplayed()
+        } finally {
+            compose.runOnIdle { visible.value = false }
+            compose.waitForIdle()
+            store.clear()
+            db.close()
+        }
+    }
+    @Test fun swipeExposesRegimenManagementWithoutOpeningMedication() {
+        var opened = false
+        var regimens = false
+        compose.setContent { MaterialTheme {
+            SwipeableMedicationCard(Medication("m", "Препарат"), true, { opened = true }, {}, {},
+                onRegimens = { regimens = true })
+        } }
+        compose.onNode(hasClickAction() and hasText("Препарат")).performTouchInput { swipeLeft() }
+        compose.onNodeWithContentDescription("Назначения").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertTrue(regimens); assertFalse(opened) }
+    }
     @Test fun archivedCardRevealsRestoreAction() {
         var restored = false
         compose.setContent { MaterialTheme {

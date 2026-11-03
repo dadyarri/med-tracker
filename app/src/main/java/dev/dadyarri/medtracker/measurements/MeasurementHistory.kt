@@ -6,13 +6,20 @@ import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.ZoneId
 
-enum class JournalType(val label: String) { PRESSURE("Давление"), WEIGHT("Вес"), GLUCOSE("Глюкоза"), MEAL("Еда") }
+enum class JournalType(val label: String) { PRESSURE("Давление"), WEIGHT("Вес"), GLUCOSE("Глюкоза"), MEAL("Еда"), MEDICATION("Лекарства") }
 sealed interface JournalEntry {
     val id: String
     val at: Long
     val createdAt: Long
     val type: JournalType
     val key get() = "${type.name}_$id"
+    data class Intake(val record: dev.dadyarri.medtracker.medications.MedicationIntake,
+                      val medication: dev.dadyarri.medtracker.medications.Medication) : JournalEntry {
+        override val id get() = record.id
+        override val at get() = record.takenAt
+        override val createdAt get() = record.createdAt
+        override val type get() = JournalType.MEDICATION
+    }
     data class Meal(val record: dev.dadyarri.medtracker.meals.MealEvent) : JournalEntry {
         override val id get() = record.id
         override val at get() = record.startedAt
@@ -52,7 +59,7 @@ data class HistoryFilter(
         return records.filter { entry ->
             (type == null || entry.type == type) && (from == null || entry.at >= from) &&
                 (until == null || entry.at < until) && when (entry) {
-                    is JournalEntry.Meal -> true
+                    is JournalEntry.Meal, is JournalEntry.Intake -> true
                     is JournalEntry.Pressure -> context == null || entry.record.context == context
                     is JournalEntry.Weight -> context == null || entry.record.context == context
                     is JournalEntry.Glucose -> (food == null || entry.record.foodContext == food.name) &&

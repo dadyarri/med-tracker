@@ -25,8 +25,9 @@ import kotlin.math.roundToInt
 
 @Composable
 internal fun SwipeableMedicationCard(medication: Medication, enabled: Boolean,
-                                    onClick: () -> Unit, onEdit: () -> Unit, onArchive: () -> Unit) {
-    val width = with(LocalDensity.current) { 112.dp.toPx() }
+                                    onClick: () -> Unit, onEdit: () -> Unit, onArchive: () -> Unit,
+                                    onRegimens: (() -> Unit)? = null) {
+    val width = with(LocalDensity.current) { (if (onRegimens != null) 168.dp else 112.dp).toPx() }
     var revealed by rememberSaveable(medication.id, medication.archived) { mutableStateOf(false) }
     var dragging by remember { mutableStateOf(false) }
     var target by remember(medication.id, medication.archived, width) {
@@ -36,10 +37,12 @@ internal fun SwipeableMedicationCard(medication: Medication, enabled: Boolean,
     val archiveLabel = if (medication.archived) "Вернуть из архива" else "В архив"
     fun edit() { revealed = false; target = 0f; onEdit() }
     fun archive() { revealed = false; target = 0f; onArchive() }
+    fun regimens() { revealed = false; target = 0f; onRegimens?.invoke() }
     Box(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.extraLarge)) {
         if (revealed || dragging || offset < -1f) {
-            Row(Modifier.align(Alignment.CenterEnd).width(112.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+            Row(Modifier.align(Alignment.CenterEnd).width((if (onRegimens != null) 168.dp else 112.dp)), horizontalArrangement = Arrangement.SpaceEvenly) {
                 MedicationCardAction(R.drawable.ic_edit, "Изменить препарат", enabled, ::edit)
+                if (onRegimens != null) MedicationCardAction(R.drawable.ic_calendar, "Назначения", enabled, ::regimens)
                 MedicationCardAction(if (medication.archived) R.drawable.ic_unarchive else R.drawable.ic_archive,
                     archiveLabel, enabled, ::archive)
             }
@@ -61,7 +64,8 @@ internal fun SwipeableMedicationCard(medication: Medication, enabled: Boolean,
             .semantics {
                 if (enabled) customActions = listOf(
                     CustomAccessibilityAction("Изменить препарат") { edit(); true },
-                    CustomAccessibilityAction(archiveLabel) { archive(); true })
+                    CustomAccessibilityAction(archiveLabel) { archive(); true }) +
+                    if (onRegimens != null) listOf(CustomAccessibilityAction("Назначения") { regimens(); true }) else emptyList()
             }) {
             MedicationCard(medication, onClick = {
                 if (revealed) { revealed = false; target = 0f } else onClick()

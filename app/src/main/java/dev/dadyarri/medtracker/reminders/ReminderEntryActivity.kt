@@ -95,7 +95,7 @@ internal fun ReminderEntrySheet(request: ReminderEntryRequest, rows: List<Remind
                         false, busy, error, { model.saveMeasurement(row, it, saved) }, {}, close, meals)
                     JournalType.MEAL -> MealEditor(MealEvent(row.entryId, row.meal ?: row.source, now, now, now),
                         busy, { model.saveMeal(row, it, saved) }, {}, editing = false, onClose = close, error = error)
-                    null -> Text("Тип записи недоступен", modifier = Modifier.padding(24.dp))
+                    JournalType.MEDICATION, null -> Text("Тип записи недоступен", modifier = Modifier.padding(24.dp))
                 }
             }
         }

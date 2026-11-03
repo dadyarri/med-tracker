@@ -115,6 +115,7 @@ private fun MedTrackerApp(model: AlarmViewModel = koinViewModel()) {
         )
         else -> dev.dadyarri.medtracker.measurements.MeasurementsHome(mealsModel = koinViewModel(),
             reminderSettings = koinViewModel(), reminders = org.koin.compose.koinInject(),
+            medicationsModel = koinViewModel(),
             medicationsContent = { dev.dadyarri.medtracker.medications.MedicationScreen(koinViewModel()) })
     }
 }

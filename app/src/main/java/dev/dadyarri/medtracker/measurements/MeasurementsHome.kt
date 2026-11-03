@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.dadyarri.medtracker.medications.*
 import dev.dadyarri.medtracker.EmptyHome
 import dev.dadyarri.medtracker.R
 import dev.dadyarri.medtracker.pressure.*
@@ -42,7 +43,12 @@ fun MeasurementsHome(
     reminderSettings: dev.dadyarri.medtracker.reminders.ReminderSettingsViewModel? = null,
     reminders: ReminderAlarmController? = null,
     medicationsContent: @Composable () -> Unit = {},
+    medicationsModel: MedicationViewModel? = null,
 ) {
+    val medicationData by (medicationsModel?.data ?: kotlinx.coroutines.flow.flowOf<MedicationData?>(null)).collectAsStateWithLifecycle(initialValue = null)
+    val medicationBusy by (medicationsModel?.busy ?: kotlinx.coroutines.flow.flowOf(false)).collectAsStateWithLifecycle(initialValue = false)
+    val medicationError by (medicationsModel?.error ?: kotlinx.coroutines.flow.flowOf<String?>(null)).collectAsStateWithLifecycle(initialValue = null)
+    var intakeEditorId by rememberSaveable { mutableStateOf<String?>(null) }
     val activityContext = LocalContext.current
     val plans by (reminders?.dao?.observe() ?: kotlinx.coroutines.flow.flowOf(emptyList<ReminderOccurrence>()))
         .collectAsStateWithLifecycle(initialValue = emptyList())
@@ -90,7 +96,7 @@ fun MeasurementsHome(
         val openedAt = System.currentTimeMillis()
         val now = PressureDraft.format(openedAt)
         initial = when (entry) {
-            is JournalEntry.Meal -> emptyList()
+            is JournalEntry.Meal, is JournalEntry.Intake -> emptyList()
             is JournalEntry.Pressure -> PressureDraft.from(entry.record).let {
                 listOf(it.systolic, it.diastolic, it.pulse, it.time, it.context.orEmpty(), it.comment)
             }
@@ -106,7 +112,11 @@ fun MeasurementsHome(
                 else listOf("", now, "", glucoseUnit.name, FoodContext.NONE.name, "", "", "", "", openedAt.toString())
         }
     }
-    val all = (journal(pressures.orEmpty(), weights.orEmpty(), glucose.orEmpty()) + meals.map(JournalEntry::Meal))
+    val medicationRecords = medicationData?.let { data ->
+        val drugs = data.medications.associateBy { it.id }
+        data.intakes.mapNotNull { intake -> drugs[intake.medicationId]?.let { JournalEntry.Intake(intake, it) } }
+    }.orEmpty()
+    val all = (journal(pressures.orEmpty(), weights.orEmpty(), glucose.orEmpty()) + meals.map(JournalEntry::Meal) + medicationRecords)
         .sortedWith(compareByDescending<JournalEntry> { it.at }.thenByDescending { it.createdAt }.thenBy { it.key })
     val listState = rememberLazyListState()
     var knownKeys by remember { mutableStateOf<Set<String>?>(null) }
@@ -121,6 +131,10 @@ fun MeasurementsHome(
     @Composable
     fun RecordCard(entry: JournalEntry) {
         when (entry) {
+            is JournalEntry.Intake -> MedicationIntakeHistoryCard(entry) {
+                medicationsModel?.error?.value = null
+                intakeEditorId = entry.id
+            }
             is JournalEntry.Meal -> dev.dadyarri.medtracker.ui.MeasurementCardFrame(
                 "Еда: ${MealType.valueOf(entry.record.type).label}", entry.at, emptyList(), { mealEditor = entry.id }) {
                 Text(MealType.valueOf(entry.record.type).label, style = MaterialTheme.typography.displaySmall)
@@ -139,7 +153,7 @@ fun MeasurementsHome(
     EmptyHome(recordActions = {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            JournalType.entries.filter { it != JournalType.MEAL || mealsModel != null }.forEach { item ->
+            JournalType.entries.filter { it != JournalType.MEDICATION && (it != JournalType.MEAL || mealsModel != null) }.forEach { item ->
                 Box {
                     RecordAction(item) { if (item == JournalType.MEAL) mealMenu = true else open(null, item) }
                     if (item == JournalType.MEAL) DropdownMenu(expanded = mealMenu, onDismissRequest = { mealMenu = false }) {
@@ -157,7 +171,7 @@ fun MeasurementsHome(
         }
     }) { today ->
         val visible = if (today) HistoryFilter(start = currentDate, end = currentDate).apply(all) else filter.apply(all)
-        val loaded = pressures != null && weights != null && glucose != null
+        val loaded = pressures != null && weights != null && glucose != null && (medicationsModel == null || medicationData != null)
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp), state = listState,
             contentPadding = PaddingValues(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (!today) {
@@ -198,6 +212,21 @@ fun MeasurementsHome(
             }
         }
     }
+    val selectedIntake = medicationRecords.find { it.id == intakeEditorId }
+    if (selectedIntake != null && medicationsModel != null) {
+        val closeIntake = { intakeEditorId = null; medicationsModel.error.value = null }
+        ModalBottomSheet(onDismissRequest = { if (!medicationBusy) closeIntake() },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            sheetGesturesEnabled = !medicationBusy, properties = ModalBottomSheetProperties(shouldDismissOnBackPress = !medicationBusy)) {
+            key(selectedIntake.id) {
+                IntakeEditor(selectedIntake.medication, selectedIntake.record, true,
+                    medicationData?.regimens.orEmpty().filter { it.medicationId == selectedIntake.medication.id },
+                    medicationBusy, medicationError,
+                    { medicationsModel.intake(it, true, closeIntake) },
+                    { medicationsModel.deleteIntake(selectedIntake.id, closeIntake) }, closeIntake)
+            }
+        }
+    }
     val selectedMeal = meals.find { it.id == mealEditor }
     if (selectedMeal != null && mealsModel != null) ModalBottomSheet(onDismissRequest = { if (!mealBusy) mealEditor = null }) {
         dev.dadyarri.medtracker.meals.MealEditor(selectedMeal, mealBusy,
@@ -231,6 +260,7 @@ fun MeasurementsHome(
 }
 
 internal val JournalType.icon: Int get() = when (this) {
+    JournalType.MEDICATION -> R.drawable.ic_medication
     JournalType.MEAL -> R.drawable.ic_meal
     JournalType.PRESSURE -> R.drawable.ic_blood_pressure
     JournalType.WEIGHT -> R.drawable.ic_weight
