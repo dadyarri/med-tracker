@@ -35,13 +35,13 @@ class MedicationUiTest {
         var saved: Medication? = null
         compose.setContent { MaterialTheme { MedicationEditor(initial, false, null, { saved = it }, {}) } }
         compose.onNodeWithContentDescription("Внешний вид").performClick()
-        compose.onNodeWithContentDescription("Форма: Капсула").performClick()
+        compose.onNodeWithContentDescription("Форма: Капсула").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Цвет: B8DFFF").performScrollTo().performClick()
         compose.onNodeWithText("Отмена").performClick()
         compose.onNodeWithText("Сохранить").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(initial.shape, requireNotNull(saved).shape) }
         compose.onNodeWithContentDescription("Внешний вид").performScrollTo().performClick()
-        compose.onNodeWithContentDescription("Форма: Капсула").performClick()
+        compose.onNodeWithContentDescription("Форма: Капсула").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Цвет: B8DFFF").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Вторая половина").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Цвет: FFDAD6").performScrollTo().performClick()
