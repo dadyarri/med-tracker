@@ -99,6 +99,11 @@ Compose Preview; основной экран также при масштабе 
 отсутствие столбца form, целостность внешних ключей и редактирование после миграции.
 UI-тест проверяет отсутствие текстового поля «Форма».
 
+Подсказки привязки к питанию: иконки отношения к еде и завтрака/обеда/ужина
+в редакторе назначения используют Material 3 TooltipBox с названием.
+`./gradlew --no-daemon testDebugUnitTest --tests dev.dadyarri.medtracker.medications.MedicationUiTest assembleDebug lintDebug --warning-mode all`
+— exit 0, 32s; UI-тесты, debug APK и lint прошли.
+
 ## Границы среза и следующая работа
 
 Этап 5 пока не закрыт. Показанный срок — расчёт расписания, системная доставка

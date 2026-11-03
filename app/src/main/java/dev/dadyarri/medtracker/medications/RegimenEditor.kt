@@ -16,6 +16,7 @@ import dev.dadyarri.medtracker.measurements.icon
 import dev.dadyarri.medtracker.ui.AppTimePicker
 import java.time.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RegimenEditor(medication: Medication, existing: MedicationRegimen?, initial: RegimenVersion?,
                            busy: Boolean, error: String?, repeatFrom: MedicationRegimen? = null, onSave: (MedicationRegimen, RegimenVersion) -> Unit,
@@ -115,8 +116,11 @@ internal fun RegimenEditor(medication: Medication, existing: MedicationRegimen?,
                     MedicationFood.DURING -> R.drawable.ic_meal
                     MedicationFood.AFTER -> R.drawable.ic_context_after_meal
                 }
-                FilterChip(selected = food == relation.name, onClick = { food = relation.name }, enabled = !busy,
-                    label = { Icon(painterResource(icon), relation.label, Modifier.size(24.dp)) })
+                TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                    tooltip = { PlainTooltip { Text(relation.label) } }, state = rememberTooltipState()) {
+                    FilterChip(selected = food == relation.name, onClick = { food = relation.name }, enabled = !busy,
+                        label = { Icon(painterResource(icon), relation.label, Modifier.size(24.dp)) })
+                }
             }
         }
         if (food in listOf("BEFORE", "AFTER") && mode in listOf(ScheduleMode.DAILY, ScheduleMode.WEEKDAYS, ScheduleMode.DAYS)) {
@@ -127,8 +131,11 @@ internal fun RegimenEditor(medication: Medication, existing: MedicationRegimen?,
             if (effectiveOffset) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     MealType.entries.filterNot { it == MealType.SNACK }.forEach { type ->
-                        FilterChip(selected = meal == type.name, onClick = { meal = type.name }, enabled = !busy,
-                            label = { Icon(painterResource(type.icon), type.label, Modifier.size(24.dp)) })
+                        TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                            tooltip = { PlainTooltip { Text(type.label) } }, state = rememberTooltipState()) {
+                            FilterChip(selected = meal == type.name, onClick = { meal = type.name }, enabled = !busy,
+                                label = { Icon(painterResource(type.icon), type.label, Modifier.size(24.dp)) })
+                        }
                     }
                 }
                 MedicationNumber("Минут", offsetMinutes, !busy) { offsetMinutes = it }
