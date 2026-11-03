@@ -36,7 +36,7 @@ jobs:
         run: |
           for variable in RELEASE_KEYSTORE_BASE64 RELEASE_KEY_ALIAS RELEASE_STORE_PASSWORD RELEASE_KEY_PASSWORD; do
             if [[ -z "${!variable}" ]]; then
-              echo "::error::Missing release signing secret: $variable. Configure ANDROID_RELEASE_* repository secrets as described in README.md."
+              echo "::error::Missing release signing secret: $variable. Run scripts/configure-release-signing.sh locally to configure ANDROID_RELEASE_* secrets; see README.md."
               exit 1
             fi
           done

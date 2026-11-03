@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Offline fixture: stores digests of synthetic test secrets, never talks to GitHub.
+set -euo pipefail
+: "${FAKE_GH_STATE:?Only run through test-configure-release-signing.sh}"
+case "${1:-} ${2:-}" in
+  "repo view")
+    [[ ${3:-} == dadyarri/med-tracker ]] || exit 2
+    printf '%s\n' '{"nameWithOwner":"dadyarri/med-tracker"}'
+    ;;
+  "secret list")
+    [[ ${3:-} == --repo && ${4:-} == dadyarri/med-tracker ]] || exit 2
+    for item in "$FAKE_GH_STATE"/ANDROID_RELEASE_*; do
+      if [[ -f "$item" ]]; then printf '%s\n' "${item##*/}"; fi
+    done
+    ;;
+  "secret set")
+    [[ ${4:-} == --repo && ${5:-} == dadyarri/med-tracker ]] || exit 2
+    secret=$3
+    [[ "$secret" == ANDROID_RELEASE_* ]] || exit 2
+    [[ ! -e "$FAKE_GH_STATE/$secret" ]] || { echo 'Attempted to overwrite existing secret.' >&2; exit 3; }
+    [[ ${FAKE_GH_FAIL_SECRET:-} != "$secret" ]] || { echo 'Simulated upload failure.' >&2; exit 37; }
+    if [[ "$secret" == ANDROID_RELEASE_KEYSTORE_BASE64 ]]; then
+      base64 --decode | openssl dgst -sha256 > "$FAKE_GH_STATE/$secret"
+    else
+      openssl dgst -sha256 > "$FAKE_GH_STATE/$secret"
+    fi
+    ;;
+  *) echo 'Unexpected fake gh invocation.' >&2; exit 2 ;;
+esac
