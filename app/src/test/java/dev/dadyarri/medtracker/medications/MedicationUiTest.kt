@@ -56,6 +56,29 @@ class MedicationUiTest {
             assertEquals(initial.note, value.note)
         }
     }
+    @Test fun horizontalShapeGridSelectsContainerAndCustomHexSavesPastel() {
+        val initial = Medication("m", "Препарат", unit = "мл", usualDose = "2.5")
+        var saved: Medication? = null
+        compose.setContent { MaterialTheme { MedicationEditor(initial, false, null, { saved = it }, {}) } }
+        compose.onNodeWithContentDescription("Внешний вид").performClick()
+        compose.onNodeWithContentDescription("Формы препарата").performScrollToIndex(PillShape.INHALER.ordinal)
+        compose.onNodeWithContentDescription("Форма: Ингалятор").performClick()
+        compose.onNodeWithContentDescription("Одна").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Свой цвет").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("HEX цвета").performTextReplacement("#FF0000")
+        compose.onNodeWithText("Пастельный · #EDC0C0").assertExists()
+        compose.onNodeWithText("Выбрать").performClick()
+        compose.onNodeWithText("Готово").performClick()
+        compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+        compose.runOnIdle {
+            val value = requireNotNull(saved)
+            assertEquals("INHALER", value.shape)
+            assertEquals(0xFFEDC0C0, value.color)
+            assertEquals("мл", value.unit)
+            assertEquals("2,5", value.usualDose)
+            assertEquals(0, value.score)
+        }
+    }
     @Test fun customUnitIsSelectedWithoutChangingDose() {
         var saved: Medication? = null
         compose.setContent { MaterialTheme { MedicationEditor(Medication("m", "Препарат"), false, null, { saved = it }, {}) } }

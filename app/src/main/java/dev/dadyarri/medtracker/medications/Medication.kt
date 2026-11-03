@@ -11,7 +11,13 @@ fun doseValue(text: String): String? = runCatching {
 }.getOrNull()
 
 enum class PillShape(val label: String) {
-    NONE("Без изображения"), ROUND("Круг"), OVAL("Овал"), OBLONG("Продолговатая"), DIAMOND("Ромб"), CAPSULE("Капсула")
+    NONE("Без изображения"), ROUND("Круг"), OVAL("Овал"), OBLONG("Продолговатая"), DIAMOND("Ромб"), CAPSULE("Капсула"),
+    SOFTGEL("Мягкая капсула"), TRIANGLE("Треугольник"), HEXAGON("Шестиугольник"),
+    BOTTLE("Флакон"), DROPPER("Пипетка"), TUBE("Тюбик"), SYRINGE("Шприц"),
+    INHALER("Ингалятор"), SACHET("Пакетик"), AMPOULE("Ампула");
+
+    val supportsScore get() = this in listOf(ROUND, OVAL, OBLONG, DIAMOND, TRIANGLE, HEXAGON)
+    val isContainer get() = this in listOf(BOTTLE, DROPPER, TUBE, SYRINGE, INHALER, SACHET, AMPOULE)
 }
 enum class RegimenKind(val label: String) { CONTINUOUS("Постоянно"), COURSE("Курс"), ONCE("Разово"), PRN("По необходимости") }
 enum class ScheduleMode(val label: String) {

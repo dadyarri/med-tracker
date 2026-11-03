@@ -13,7 +13,7 @@ class MedicationService(private val db: AlarmDatabase) {
         val dose = doseValue(medication.usualDose) ?: error("Invalid dose")
         val shape = PillShape.valueOf(medication.shape)
         require(medication.score in 0..2)
-        require(medication.score == 0 || shape in listOf(PillShape.ROUND, PillShape.OVAL, PillShape.OBLONG, PillShape.DIAMOND))
+        require(medication.score == 0 || shape.supportsScore)
         val old = dao.medication(medication.id)
         if (old != null && old.unit != medication.unit.trim()) {
             require(dao.intakes().first().none { it.medicationId == old.id } &&

@@ -42,6 +42,15 @@ class MedicationServiceTest {
         assertNull(doseValue("0")); assertNull(doseValue("-1")); assertNull(doseValue("1e3"))
         assertEquals("2.5", doseValue("2,500"))
     }
+    @Test fun allAppearanceKindsRoundTripAndOnlyTabletsHaveScores() = runBlocking {
+        for (shape in PillShape.entries) {
+            val value = medication.copy(id = "shape_${shape.name}", shape = shape.name,
+                score = if (shape.supportsScore) 2 else 0)
+            service.save(value)
+            assertEquals(shape.name, db.medications().medication(value.id)!!.shape)
+            if (!shape.supportsScore) rejected { service.save(value.copy(score = 1)) }
+        }
+    }
     @Test fun revisionsKeepOldIntakeSnapshotsAndEditingPreservesCreationTime() = runBlocking {
         service.saveIntake(fact(), false)
         val original = db.medications().intake("i")!!

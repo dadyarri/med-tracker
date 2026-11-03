@@ -4,6 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,20 +48,19 @@ internal fun MedicationAppearanceDialog(initial: Medication, enabled: Boolean, o
                 contentAlignment = Alignment.Center) {
                 MedicationVisual(value, Modifier.fillMaxSize().padding(20.dp))
             }
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                PillShape.entries.chunked(3).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { type ->
-                            AppearanceOption(shape == type.name, "Форма: ${type.label}", enabled,
-                                Modifier.weight(1f).aspectRatio(1f), onClick = {
-                                    shape = type.name
-                                    if (type in listOf(PillShape.NONE, PillShape.CAPSULE)) score = 0
-                                    if (type != PillShape.CAPSULE) half = 0
-                                }) {
-                                if (type == PillShape.NONE) Icon(painterResource(R.drawable.ic_context_unlinked), null, Modifier.size(24.dp))
-                                else MedicationVisual(value.copy(shape = type.name, score = 0), Modifier.fillMaxSize().padding(6.dp))
-                            }
-                        }
+            LazyHorizontalGrid(rows = GridCells.Fixed(2),
+                state = rememberLazyGridState(initialFirstVisibleItemIndex = PillShape.entries.indexOf(PillShape.valueOf(initial.shape))),
+                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().height(160.dp).semantics { contentDescription = "Формы препарата" }) {
+                items(PillShape.entries, key = { it.name }) { type ->
+                    AppearanceOption(shape == type.name, "Форма: ${type.label}", enabled,
+                        Modifier.width(76.dp).fillMaxHeight(), onClick = {
+                            shape = type.name
+                            if (!type.supportsScore) score = 0
+                            if (type != PillShape.CAPSULE) half = 0
+                        }) {
+                        if (type == PillShape.NONE) Icon(painterResource(R.drawable.ic_context_unlinked), null, Modifier.size(24.dp))
+                        else MedicationVisual(value.copy(shape = type.name, score = 0), Modifier.fillMaxSize().padding(6.dp))
                     }
                 }
             }
@@ -82,7 +85,7 @@ internal fun MedicationAppearanceDialog(initial: Medication, enabled: Boolean, o
                         Box(contentAlignment = Alignment.Center) { Text("#", style = MaterialTheme.typography.titleLarge) }
                     }
                 }
-                if (shape != "CAPSULE") Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (PillShape.valueOf(shape).supportsScore) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("Без риски", "Одна", "Крест").forEachIndexed { index, title ->
                         AppearanceOption(score == index, title, enabled, Modifier.weight(1f).height(64.dp),
                             onClick = { score = index }) {
@@ -94,13 +97,22 @@ internal fun MedicationAppearanceDialog(initial: Medication, enabled: Boolean, o
         }
     }, confirmButton = { TextButton(onClick = { onConfirm(value) }, enabled = enabled) { Text("Готово") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } })
-    if (custom) AlertDialog(onDismissRequest = { custom = false }, shape = RoundedCornerShape(32.dp), title = { Text("Цвет") },
-        text = { TextField(hex, { hex = it.take(6) }, prefix = { Text("#") }, singleLine = true,
-            modifier = Modifier.semantics { contentDescription = "HEX цвета" }) },
-        confirmButton = { TextButton(onClick = {
-            choose(0xFF000000 or hex.toLong(16)); custom = false
-        }, enabled = enabled && hex.matches(Regex("[0-9a-fA-F]{6}"))) { Text("Выбрать") } },
-        dismissButton = { TextButton(onClick = { custom = false }) { Text("Отмена") } })
+    if (custom) {
+        val pastel = pastelMedicationColor(hex)
+        AlertDialog(onDismissRequest = { custom = false }, shape = RoundedCornerShape(32.dp), title = { Text("Цвет") },
+            text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextField(hex, { hex = it.trim().removePrefix("#").take(6) }, prefix = { Text("#") }, singleLine = true,
+                    modifier = Modifier.semantics { contentDescription = "HEX цвета" })
+                if (pastel != null) {
+                    MedicationVisual(if (half == 1 && shape == "CAPSULE") value.copy(secondColor = pastel)
+                        else value.copy(color = pastel), Modifier.fillMaxWidth().height(100.dp))
+                    Text("Пастельный · #${"%06X".format(pastel and 0xFFFFFF)}", style = MaterialTheme.typography.labelMedium)
+                }
+            } }, confirmButton = { TextButton(onClick = {
+                pastel?.let(::choose); custom = false
+            }, enabled = enabled && pastel != null) { Text("Выбрать") } },
+            dismissButton = { TextButton(onClick = { custom = false }) { Text("Отмена") } })
+    }
 }
 
 @Composable
