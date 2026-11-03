@@ -51,10 +51,13 @@ class PreserveGlucoseCompletions : androidx.room.migration.AutoMigrationSpec {
     }
 }
 
+@DeleteColumn(tableName = "medication", columnName = "form")
+class RemoveMedicationForm : androidx.room.migration.AutoMigrationSpec
+
 @Database(entities = [AlarmRecord::class, AlarmEvent::class, PressureRecord::class, WeightRecord::class, GlucoseRecord::class, MealEvent::class, GlucoseCycle::class, dev.dadyarri.medtracker.reminders.ReminderOccurrence::class,
     dev.dadyarri.medtracker.medications.Medication::class, dev.dadyarri.medtracker.medications.MedicationRegimen::class,
-    dev.dadyarri.medtracker.medications.RegimenVersion::class, dev.dadyarri.medtracker.medications.MedicationIntake::class], version = 9,
-    exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7), AutoMigration(from = 7, to = 8, spec = PreserveGlucoseCompletions::class), AutoMigration(from = 8, to = 9)])
+    dev.dadyarri.medtracker.medications.RegimenVersion::class, dev.dadyarri.medtracker.medications.MedicationIntake::class], version = 10,
+    exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7), AutoMigration(from = 7, to = 8, spec = PreserveGlucoseCompletions::class), AutoMigration(from = 8, to = 9), AutoMigration(from = 9, to = 10, spec = RemoveMedicationForm::class)])
 abstract class AlarmDatabase : RoomDatabase() {
     abstract fun alarms(): AlarmDao
     abstract fun pressure(): PressureDao

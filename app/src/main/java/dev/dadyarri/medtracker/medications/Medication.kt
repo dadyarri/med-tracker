@@ -28,7 +28,7 @@ enum class MedicationFood(val label: String) { NONE("Без привязки"), 
 @Entity(tableName = "medication")
 data class Medication(
     @PrimaryKey val id: String = medicationId(), val name: String = "",
-    val form: String = "", val strength: String = "", val unit: String = "табл.",
+    val strength: String = "", val unit: String = "табл.",
     val usualDose: String = "1", val instruction: String = "", val note: String = "",
     val shape: String = PillShape.NONE.name, val score: Int = 0,
     val color: Long = 0xFFFFFFFF, val secondColor: Long = 0xFF6750A4,

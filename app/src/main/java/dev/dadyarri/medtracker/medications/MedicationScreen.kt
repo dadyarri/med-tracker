@@ -168,8 +168,7 @@ internal fun MedicationCard(medication: Medication, onClick: () -> Unit) {
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(medication.name, style = MaterialTheme.typography.titleLarge)
-                val description = listOf(medication.form, medication.strength).filter(String::isNotBlank).joinToString(" · ")
-                if (description.isNotEmpty()) Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (medication.strength.isNotBlank()) Text(medication.strength, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("${medication.usualDose.replace('.', ',')} ${medication.unit}", style = MaterialTheme.typography.labelMedium)
             }
         }

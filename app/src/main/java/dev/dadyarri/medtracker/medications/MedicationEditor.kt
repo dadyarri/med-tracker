@@ -19,7 +19,6 @@ import dev.dadyarri.medtracker.R
 internal fun MedicationEditor(initial: Medication, busy: Boolean, error: String?,
                               onSave: (Medication) -> Unit, onClose: () -> Unit) {
     var name by rememberSaveable(initial.id) { mutableStateOf(initial.name) }
-    var form by rememberSaveable(initial.id) { mutableStateOf(initial.form) }
     var strength by rememberSaveable(initial.id) { mutableStateOf(initial.strength) }
     var unit by rememberSaveable(initial.id) { mutableStateOf(initial.unit) }
     var dose by rememberSaveable(initial.id) { mutableStateOf(initial.usualDose.replace('.', ',')) }
@@ -33,7 +32,7 @@ internal fun MedicationEditor(initial: Medication, busy: Boolean, error: String?
     var units by remember { mutableStateOf(false) }
     var customUnit by rememberSaveable { mutableStateOf(false) }
     var unitDraft by rememberSaveable { mutableStateOf(initial.unit) }
-    val value = initial.copy(name = name, form = form, strength = strength, unit = unit, usualDose = dose,
+    val value = initial.copy(name = name, strength = strength, unit = unit, usualDose = dose,
         instruction = instruction, shape = shape, score = score, color = color, secondColor = second)
     val fieldColors = TextFieldDefaults.colors(
         focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
@@ -53,12 +52,8 @@ internal fun MedicationEditor(initial: Medication, busy: Boolean, error: String?
         TextField(name, { name = it }, label = { Text("Название") }, singleLine = true, enabled = !busy,
             textStyle = MaterialTheme.typography.titleLarge, shape = MaterialTheme.shapes.large,
             colors = fieldColors, modifier = Modifier.fillMaxWidth())
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextField(form, { form = it }, label = { Text("Форма", style = MaterialTheme.typography.labelMedium) }, singleLine = true,
-                enabled = !busy, shape = MaterialTheme.shapes.large, colors = fieldColors, modifier = Modifier.weight(1f))
-            TextField(strength, { strength = it }, label = { Text("Концентрация", style = MaterialTheme.typography.labelMedium) }, singleLine = true,
-                enabled = !busy, shape = MaterialTheme.shapes.large, colors = fieldColors, modifier = Modifier.weight(1f))
-        }
+        TextField(strength, { strength = it }, label = { Text("Концентрация", style = MaterialTheme.typography.labelMedium) }, singleLine = true,
+            enabled = !busy, shape = MaterialTheme.shapes.large, colors = fieldColors, modifier = Modifier.fillMaxWidth())
         Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surfaceContainerLow) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {

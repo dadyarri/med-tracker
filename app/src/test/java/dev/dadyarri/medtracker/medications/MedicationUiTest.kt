@@ -19,6 +19,7 @@ class MedicationUiTest {
         val initial = Medication("m", note = "saved note")
         var saved: Medication? = null
         compose.setContent { MaterialTheme { MedicationEditor(initial, false, null, { saved = it }, {}) } }
+        compose.onNodeWithText("Форма").assertDoesNotExist()
         compose.onNodeWithText("Сохранить").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText("Название").performScrollTo().performTextInput("Препарат")
         compose.onNodeWithContentDescription("Доза").performTextReplacement("0,5")
@@ -31,7 +32,7 @@ class MedicationUiTest {
         }
     }
     @Test fun appearanceCancelPreservesOriginalAndConfirmKeepsIndependentCapsuleColors() {
-        val initial = Medication("m", "Препарат", form = "Капсулы", strength = "10 мг", note = "preserved")
+        val initial = Medication("m", "Препарат", strength = "10 мг", note = "preserved")
         var saved: Medication? = null
         compose.setContent { MaterialTheme { MedicationEditor(initial, false, null, { saved = it }, {}) } }
         compose.onNodeWithContentDescription("Внешний вид").performClick()

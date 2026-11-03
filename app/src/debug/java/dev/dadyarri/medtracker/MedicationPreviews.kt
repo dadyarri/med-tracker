@@ -17,7 +17,7 @@ fun MedicationCardsPreview() {
     MaterialTheme(colorScheme = if (androidx.compose.foundation.isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
         Surface {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                MedicationCard(Medication("m", "Препарат", form = "Капсулы", strength = "10 мг", shape = "CAPSULE",
+                MedicationCard(Medication("m", "Препарат", strength = "10 мг", shape = "CAPSULE",
                     color = 0xFFB8DFFF, secondColor = 0xFFFFDAD6)) {}
                 MedicationCard(Medication("n", "Другой препарат", usualDose = "0.5", shape = "ROUND", score = 2, color = 0xFFFFFFB0)) {}
             }
