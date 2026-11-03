@@ -32,6 +32,7 @@ fun ReminderSettingsScreen(
         contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         error?.let { item("error") { Text(it, color = MaterialTheme.colorScheme.error) } }
         schedulingMessage?.let { item("scheduling_error") { Text(it, color = MaterialTheme.colorScheme.error) } }
+        item("general_title") { Text("Общее", style = MaterialTheme.typography.titleMedium) }
         item("permission_status") { ReminderPermissionStatus() }
         item("alarm_sound") { AlarmSoundSetting() }
         if (values.isEmpty() && error == null) item("loading") { CircularProgressIndicator() }

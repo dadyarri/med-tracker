@@ -46,7 +46,7 @@ internal fun AlarmSoundSetting(store: AlarmToneStore = koinInject()) {
             }
         }
     }
-    Card(shape = MaterialTheme.shapes.extraLarge,
+    Card(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
