@@ -15,6 +15,40 @@ import org.robolectric.annotation.Config
 @Config(sdk = [36], application = Application::class)
 class MedicationUiTest {
     @get:Rule val compose = createComposeRule()
+    @Test fun swipeRevealsActionsWithoutOpeningOrArchivingMedication() {
+        var opened = 0
+        var edited = 0
+        var archived = 0
+        compose.setContent { MaterialTheme {
+            SwipeableMedicationCard(Medication("m", "Препарат"), true,
+                { opened++ }, { edited++ }, { archived++ })
+        } }
+        val card = compose.onNode(hasClickAction() and hasText("Препарат"))
+        card.performTouchInput { swipeLeft() }
+        compose.onNodeWithContentDescription("Изменить препарат").assertIsDisplayed()
+        compose.onNodeWithContentDescription("В архив").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, opened); assertEquals(0, archived) }
+        card.performTouchInput { swipeRight() }
+        compose.onNodeWithContentDescription("В архив").assertDoesNotExist()
+        card.performClick()
+        compose.runOnIdle { assertEquals(1, opened) }
+        card.performTouchInput { swipeLeft() }
+        compose.onNodeWithContentDescription("Изменить препарат").performClick()
+        compose.runOnIdle { assertEquals(1, edited); assertEquals(0, archived) }
+        card.performTouchInput { swipeLeft() }
+        compose.onNodeWithContentDescription("В архив").performClick()
+        compose.runOnIdle { assertEquals(1, archived); assertEquals(1, opened) }
+    }
+    @Test fun archivedCardRevealsRestoreAction() {
+        var restored = false
+        compose.setContent { MaterialTheme {
+            SwipeableMedicationCard(Medication("m", "Препарат", archived = true), true, {}, {}, { restored = true })
+        } }
+        compose.onNode(hasClickAction() and hasText("Препарат")).performTouchInput { swipeLeft() }
+        compose.onNodeWithContentDescription("В архив").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Вернуть из архива").performClick()
+        compose.runOnIdle { assertTrue(restored) }
+    }
     @Test fun medicationFormRequiresNameKeepsNotesAndSupportsFractionalDose() {
         val initial = Medication("m", note = "saved note")
         var saved: Medication? = null

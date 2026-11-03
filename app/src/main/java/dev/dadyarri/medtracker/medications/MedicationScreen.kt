@@ -55,8 +55,6 @@ fun MedicationScreen(model: MedicationViewModel) {
             }
         } else Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { selected = null }) { Text("Назад") }
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = { editorId = medication.id; open("medication") }, enabled = !busy) { Text("Изменить") }
         }
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -66,11 +64,15 @@ fun MedicationScreen(model: MedicationViewModel) {
                 if (visible.isEmpty()) item("empty") { Text(if (archive) "Архив пуст" else "Нет препаратов",
                     color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 items(visible, key = { it.id }) { drug ->
-                    MedicationCard(drug, onClick = { selected = drug.id })
+                    SwipeableMedicationCard(drug, !busy, onClick = { selected = drug.id },
+                        onEdit = { editorId = drug.id; open("medication") },
+                        onArchive = { editorId = drug.id; open("archive") })
                 }
             } else {
                 item("medication") {
-                    MedicationCard(medication, onClick = { editorId = medication.id; open("medication") })
+                    SwipeableMedicationCard(medication, !busy, onClick = {},
+                        onEdit = { editorId = medication.id; open("medication") },
+                        onArchive = { editorId = medication.id; open("archive") })
                 }
                 if (medication.instruction.isNotBlank()) item("instruction") { Text(medication.instruction) }
                 item("regimen_actions") {
@@ -79,7 +81,6 @@ fun MedicationScreen(model: MedicationViewModel) {
                             Icon(painterResource(R.drawable.ic_calendar), null, Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp)); Text("Назначение")
                         }
-                        TextButton(onClick = { open("archive") }, enabled = !busy) { Text(if (medication.archived) "Вернуть" else "В архив") }
                     }
                 }
                 items(content.regimens.filter { it.medicationId == medication.id }.sortedByDescending { it.startsAt }, key = { it.id }) { regimen ->
@@ -125,7 +126,10 @@ fun MedicationScreen(model: MedicationViewModel) {
             key(sheet, editorId, regimenId, intakeId) {
                 when (sheet) {
                     "medication" -> MedicationEditor(content.medications.find { it.id == editorId } ?: Medication(id = editorId),
-                        busy, error, { value -> model.save(value) { selected = value.id; close() } }, ::close)
+                        busy, error, { value -> model.save(value) {
+                            if (content.medications.none { it.id == value.id }) selected = value.id
+                            close()
+                        } }, ::close)
                     "regimen", "revise", "repeat" -> if (medication != null) {
                         val old = content.regimens.find { it.id == regimenId }
                         val version = old?.let {
@@ -149,10 +153,11 @@ fun MedicationScreen(model: MedicationViewModel) {
             }
         }
     }
-    if (sheet == "archive" && medication != null) AlertDialog(onDismissRequest = ::close,
-        title = { Text(if (medication.archived) "Вернуть препарат?" else "Убрать в архив?") },
-        text = { Text(if (medication.archived) "Завершённые назначения останутся в истории." else "Открытые назначения будут завершены. История сохранится.") },
-        confirmButton = { TextButton(onClick = { model.archive(medication, ::close) }, enabled = !busy) { Text("Продолжить") } },
+    val archiveTarget = content.medications.find { it.id == editorId }
+    if (sheet == "archive" && archiveTarget != null) AlertDialog(onDismissRequest = ::close,
+        title = { Text(if (archiveTarget.archived) "Вернуть препарат?" else "Убрать в архив?") },
+        text = { Text(if (archiveTarget.archived) "Завершённые назначения останутся в истории." else "Открытые назначения будут завершены. История сохранится.") },
+        confirmButton = { TextButton(onClick = { model.archive(archiveTarget, ::close) }, enabled = !busy) { Text("Продолжить") } },
         dismissButton = { TextButton(onClick = ::close) { Text("Отмена") } })
     if (sheet == "finish") AlertDialog(onDismissRequest = ::close, title = { Text("Завершить назначение?") },
         confirmButton = { TextButton(onClick = { regimenId?.let { model.finish(it, ::close) } }, enabled = !busy) { Text("Завершить") } },

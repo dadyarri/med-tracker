@@ -35,6 +35,9 @@
 | ic_weight | monitor_weight |
 | ic_medication | medication |
 | ic_meal | restaurant_menu |
+| ic_edit | edit |
+| ic_archive | archive |
+| ic_unarchive | unarchive |
 
 `ic_meal` используется для еды и перекуса; `ic_context_fasting` — только для
 контекста «Натощак». Подписи доступности и подсказки контекстов сохранены.
