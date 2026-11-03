@@ -1,0 +1,95 @@
+package dev.dadyarri.medtracker.medications
+
+import android.app.Application
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import org.junit.Assert.*
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36], application = Application::class)
+class MedicationUiTest {
+    @get:Rule val compose = createComposeRule()
+    @Test fun medicationFormRequiresNameKeepsNotesAndSupportsFractionalDose() {
+        val initial = Medication("m", note = "saved note")
+        var saved: Medication? = null
+        compose.setContent { MaterialTheme { MedicationEditor(initial, false, null, { saved = it }, {}) } }
+        compose.onNodeWithText("Сохранить").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Название").performScrollTo().performTextInput("Препарат")
+        compose.onNodeWithContentDescription("Доза").performTextReplacement("0,5")
+        compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+        compose.runOnIdle {
+            val value = requireNotNull(saved)
+            assertEquals("Препарат", value.name)
+            assertEquals("0,5", value.usualDose)
+            assertEquals("saved note", value.note)
+        }
+    }
+    @Test fun intervalEditorBuildsFullSnapshotAndUsesLargeNumericField() {
+        var saved: RegimenVersion? = null
+        compose.setContent { MaterialTheme { RegimenEditor(Medication("m", "Препарат"), null, null, false, null,
+            onSave = { _, version -> saved = version }, onClose = {}) } }
+        compose.onNodeWithText("Каждый день").performScrollTo().performClick()
+        compose.onNodeWithText("Каждые N часов").performClick()
+        compose.onNodeWithContentDescription("Часов после приёма").performScrollTo().performTextReplacement("12")
+        compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+        compose.runOnIdle {
+            val value = requireNotNull(saved)
+            assertEquals("HOURS", value.mode)
+            assertEquals(12, value.everyHours)
+            assertEquals("табл.", value.unit)
+            assertFalse(value.foodOffset)
+        }
+    }
+    @Test fun repeatingCourseCreatesNewIdentityAndCopiesEditableParameters() {
+        val old = MedicationRegimen("old-course", "m", "COURSE", 1000, endsAt = 604801000, completedAt = 5000, createdAt = 1000)
+        val version = RegimenVersion("old-version", old.id, 1000, "0.5", "табл.", "DAYS",
+            everyDays = 2, anchorDate = "2026-11-03", food = "AFTER")
+        var saved: MedicationRegimen? = null
+        var snapshot: RegimenVersion? = null
+        compose.setContent { MaterialTheme { RegimenEditor(Medication("m", "Препарат"), null, version, false, null,
+            repeatFrom = old, onSave = { regimen, value -> saved = regimen; snapshot = value }, onClose = {}) } }
+        compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+        compose.runOnIdle {
+            val value = requireNotNull(saved)
+            val revision = requireNotNull(snapshot)
+            assertNotEquals(old.id, value.id)
+            assertEquals("COURSE", value.kind)
+            assertNull(value.completedAt)
+            assertEquals("0.5", revision.dose)
+            assertEquals(2, revision.everyDays)
+            assertEquals("AFTER", revision.food)
+            assertNotEquals(version.id, revision.id)
+        }
+    }
+    @Test fun doseRevisionPreservesCalendarDayAnchor() {
+        val old = MedicationRegimen("old", "m", "CONTINUOUS", 1000, createdAt = 1000)
+        val initial = RegimenVersion("v1", old.id, 1000, "1", "табл.", "DAYS", everyDays = 3, anchorDate = "2020-01-01")
+        var saved: RegimenVersion? = null
+        compose.setContent { MaterialTheme { RegimenEditor(Medication("m", "Препарат"), old, initial, false, null,
+            onSave = { _, version -> saved = version }, onClose = {}) } }
+        compose.onNodeWithContentDescription("Доза · табл.").performTextReplacement("0,5")
+        compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+        compose.runOnIdle {
+            val value = requireNotNull(saved)
+            assertEquals("2020-01-01", value.anchorDate)
+            assertEquals(3, value.everyDays)
+            assertTrue(value.effectiveAt > old.startsAt)
+        }
+    }
+    @Test fun intakeDoesNotRequireMealEventAndKeepsComment() {
+        var saved: MedicationIntake? = null
+        val initial = MedicationIntake("i", "m", dose = "1", unit = "табл.", takenAt = System.currentTimeMillis(),
+            createdAt = 1, updatedAt = 1, comment = "preserved")
+        compose.setContent { MaterialTheme { IntakeEditor(Medication("m", "Препарат"), initial, true, emptyList(),
+            false, null, { saved = it }, {}, {}) } }
+        compose.onNodeWithContentDescription("Доза · табл.").performTextReplacement("0,5")
+        compose.onNodeWithText("Сохранить").performScrollTo().performClick()
+        compose.runOnIdle { val value = requireNotNull(saved); assertEquals("0,5", value.dose); assertEquals("preserved", value.comment) }
+    }
+}

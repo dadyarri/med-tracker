@@ -41,6 +41,7 @@ fun MeasurementsHome(
     mealsModel: dev.dadyarri.medtracker.meals.MealViewModel? = null,
     reminderSettings: dev.dadyarri.medtracker.reminders.ReminderSettingsViewModel? = null,
     reminders: ReminderAlarmController? = null,
+    medicationsContent: @Composable () -> Unit = {},
 ) {
     val activityContext = LocalContext.current
     val plans by (reminders?.dao?.observe() ?: kotlinx.coroutines.flow.flowOf(emptyList<ReminderOccurrence>()))
@@ -150,7 +151,7 @@ fun MeasurementsHome(
                 }
             }
         }
-    }, settingsContent = {
+    }, medicationsContent = medicationsContent, settingsContent = {
         if (mealsModel != null) ReminderSettingsScreen(model = reminderSettings ?: koinViewModel()) { mealSchedule ->
             dev.dadyarri.medtracker.meals.CycleSettings((cycle ?: dev.dadyarri.medtracker.meals.GlucoseCycle(startDate = currentDate.toString())).withMealTimes(mealSchedule), mealBusy, mealsModel::toggleCycle, mealsModel::setCycle)
         }

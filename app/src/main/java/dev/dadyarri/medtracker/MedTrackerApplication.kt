@@ -17,6 +17,8 @@ class MedTrackerApplication : Application() {
             modules(module {
                 single { Room.databaseBuilder(get(), AlarmDatabase::class.java, "alarm-spike.db").build() }
                 single { AlarmController(get(), get()) }
+                single { dev.dadyarri.medtracker.medications.MedicationService(get()) }
+                viewModel { dev.dadyarri.medtracker.medications.MedicationViewModel(get(), get(), get()) }
                 single { dev.dadyarri.medtracker.reminders.ReminderSettingsStore(get()) }
                 single { dev.dadyarri.medtracker.reminders.AlarmToneStore(get()) }
                 single { dev.dadyarri.medtracker.reminders.ReminderAlarmController(get(), get(), get()) }

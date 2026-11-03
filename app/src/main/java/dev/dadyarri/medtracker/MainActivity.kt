@@ -114,7 +114,8 @@ private fun MedTrackerApp(model: AlarmViewModel = koinViewModel()) {
             onFinish = model::finishWizard,
         )
         else -> dev.dadyarri.medtracker.measurements.MeasurementsHome(mealsModel = koinViewModel(),
-            reminderSettings = koinViewModel(), reminders = org.koin.compose.koinInject())
+            reminderSettings = koinViewModel(), reminders = org.koin.compose.koinInject(),
+            medicationsContent = { dev.dadyarri.medtracker.medications.MedicationScreen(koinViewModel()) })
     }
 }
 
@@ -179,6 +180,7 @@ internal fun PermissionWizard(
 internal fun EmptyHome(
     recordActions: (@Composable () -> Unit)? = null,
     settingsContent: @Composable () -> Unit = {},
+    medicationsContent: @Composable () -> Unit = {},
     content: @Composable (today: Boolean) -> Unit = {},
 ) {
     var selected by rememberSaveable { mutableStateOf(Destination.TODAY.name) }
@@ -214,6 +216,7 @@ internal fun EmptyHome(
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
             if (destination == Destination.TODAY || destination == Destination.HISTORY) content(destination == Destination.TODAY)
             if (destination == Destination.SETTINGS) settingsContent()
+            if (destination == Destination.MEDICATIONS) medicationsContent()
         }
     }
 }
